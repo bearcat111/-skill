@@ -10,7 +10,7 @@ gen_docx.py —— 网络项目部署文档生成器（由 network-deploy 技能
     - 第一个参数为 JSON 模型路径（默认 ./项目模型.json）
     - 第二个参数为输出 docx 路径（默认 ./项目设计文档.docx）
     - 依赖 python-docx；若缺失请先安装：
-        venv/Scripts/pip install python-docx
+        python -m pip install python-docx
 
 JSON 模型结构（详见下方 EXAMPLE）：
 {
@@ -49,8 +49,8 @@ def ensure_docx():
         import docx  # noqa: F401
     except ImportError:
         sys.stderr.write(
-            "ERROR: 缺少 python-docx。请在托管虚拟环境中安装：\n"
-            "  venv/Scripts/pip install python-docx\n"
+            "ERROR: 缺少 python-docx。请在运行环境的虚拟环境中安装：\n"
+            "  python -m pip install python-docx\n"
         )
         sys.exit(2)
     from docx import Document
