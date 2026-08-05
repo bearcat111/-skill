@@ -1,49 +1,49 @@
-! =====================================================================
-! ASW2 - 华为(CE)接入交换机 : PC3(VLAN30) 802.1x(AAA/RADIUS), PC4(VLAN40), AAA(VLAN100)
-! 双上联DSW1/DSW2(Trunk) + 根桥/环路保护 + DHCP Snooping + DAI + MAC黑名单
-! 注意: DAI 用 `arp anti-attack check user-bind enable`(已联网核对官方文档)
-! =====================================================================
+# =====================================================================
+# ASW2 - 华为(CE)接入交换机 : PC3(VLAN30) 802.1x(AAA/RADIUS), PC4(VLAN40), AAA(VLAN100)
+# 双上联DSW1/DSW2(Trunk) + 根桥/环路保护 + DHCP Snooping + DAI + MAC黑名单
+# 注意: DAI 用 `arp anti-attack check user-bind enable`(已联网核对官方文档)
+# =====================================================================
 sysname ASW2
-!
+#
 vlan batch 30 40 100
-!
-! ---------- MSTP 多实例 ----------
+#
+# ---------- MSTP 多实例 ----------
 stp region-configuration
  region-name CAMPUS
  instance 1 vlan 10 30 50 100
  instance 2 vlan 20 40 60
  active region-configuration
-!
-! ---------- 双上联 (Trunk) ----------
+#
+# ---------- 双上联 (Trunk) ----------
 interface GigabitEthernet1/0/1
  description to DSW1
  port link-type trunk
  port trunk allow-pass vlan 30 40 100
  stp root-protection
  stp loop-protection
-!
+#
 interface GigabitEthernet1/0/2
  description to DSW2
  port link-type trunk
  port trunk allow-pass vlan 30 40 100
  stp root-protection
  stp loop-protection
-!
-! ---------- 主机端口 (portfast) ----------
+#
+# ---------- 主机端口 (portfast) ----------
 interface GigabitEthernet1/0/11
  description PC3
  port link-type access
  port default vlan 30
  stp edged-port enable
  authentication-profile p1
-!
+#
 interface GigabitEthernet1/0/12
  description PC4
  port link-type access
  port default vlan 40
  stp edged-port enable
-!
-! ---------- DHCP Snooping + DAI ----------
+#
+# ---------- DHCP Snooping + DAI ----------
 dhcp enable
 dhcp snooping enable ipv4
 vlan 30
@@ -59,13 +59,13 @@ interface GigabitEthernet1/0/1
  dhcp snooping trusted
 interface GigabitEthernet1/0/2
  dhcp snooping trusted
-!
-! ---------- MAC 黑名单 ----------
+#
+# ---------- MAC 黑名单 ----------
 mac-address blackhole 8c18-2021-1120 vlan 30
 mac-address blackhole 8c18-2021-1120 vlan 40
 mac-address blackhole 8c18-2021-1120 vlan 100
-!
-! ---------- 802.1x (NAC, RADIUS=192.168.100.100) ----------
+#
+# ---------- 802.1x (NAC, RADIUS=192.168.100.100) ----------
 dot1x enable
 dot1x-access-profile name d1
  dot1x authentication-method eap
@@ -81,11 +81,11 @@ aaa
  domain example.com
   authentication-scheme abc
   radius server group rd1
-!
-! ---------- 管理 SVI ----------
+#
+# ---------- 管理 SVI ----------
 interface Vlanif100
  ip address 192.168.100.12 255.255.255.0
-!
+#
 ip route-static 0.0.0.0 0.0.0.0 192.168.100.254
-!
+#
 return

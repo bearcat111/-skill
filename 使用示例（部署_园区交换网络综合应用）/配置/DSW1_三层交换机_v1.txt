@@ -1,15 +1,15 @@
-! =====================================================================
-! DSW1 - 华为 CE12800 汇聚三层交换机 (主: VLAN10/30/50/100 ; 备: VLAN20/40/60)
-! 角色: 各VLAN网关(VRRP) + MST实例1根桥 + OSPF area0 + DSW间LACP三层互联
-! 注意: 以下为 VRP 命令，粘贴前请按 eve-ng 实际镜像版本核对
-! =====================================================================
+# =====================================================================
+# DSW1 - 华为 CE12800 汇聚三层交换机 (主: VLAN10/30/50/100 ; 备: VLAN20/40/60)
+# 角色: 各VLAN网关(VRRP) + MST实例1根桥 + OSPF area0 + DSW间LACP三层互联
+# 注意: 以下为 VRP 命令，粘贴前请按 eve-ng 实际镜像版本核对
+# =====================================================================
 sysname DSW1
-!
+#
 bfd
-!
+#
 vlan batch 10 20 30 40 50 60 100
-!
-! ---------- AAA / SSH (RADIUS不可达回退本地) ----------
+#
+# ---------- AAA / SSH (RADIUS不可达回退本地) ----------
 aaa
  authentication-scheme auth_r
   authentication-mode radius local
@@ -24,66 +24,66 @@ aaa
  local-user admin password irreversible-cipher Admin@123
  local-user admin privilege level 15
  local-user admin service-type ssh
-!
+#
 stelnet server enable
 ssh user admin authentication-type password
 ssh user admin service-type stelnet
-!
-! ---------- Loopback0 (router-id / 管理源) ----------
+#
+# ---------- Loopback0 (router-id / 管理源) ----------
 interface LoopBack0
  ip address 10.255.255.11 255.255.255.255
-!
-! ---------- DSW1<->DSW2 LACP (src-dst-ip) ----------
+#
+# ---------- DSW1<->DSW2 LACP (src-dst-ip) ----------
 interface Eth-Trunk1
  port link-type trunk
  port trunk allow-pass vlan 10 20 30 40 50 60 100
  mode lacp-static
  load-balance src-dst-ip
-!
+#
 interface GigabitEthernet1/0/9
  eth-trunk 1
-!
+#
 interface GigabitEthernet1/0/10
  eth-trunk 1
-!
+#
 interface Vlanif999
  description DSW1-DSW2 L3 interconnect
  ip address 10.0.0.1 255.255.255.252
  ospf bfd enable
  bfd min-transmit-interval 100 min-receive-interval 100 detect-multiplier 3
-!
-! ---------- 上联出口路由器 (L3 路由口) ----------
+#
+# ---------- 上联出口路由器 (L3 路由口) ----------
 interface GigabitEthernet1/0/1
  description to R1
  undo portswitch
  ip address 10.0.1.1 255.255.255.252
  ospf bfd enable
  bfd min-transmit-interval 100 min-receive-interval 100 detect-multiplier 3
-!
+#
 interface GigabitEthernet1/0/3
  description to R2
  undo portswitch
  ip address 10.0.3.1 255.255.255.252
  ospf bfd enable
  bfd min-transmit-interval 100 min-receive-interval 100 detect-multiplier 3
-!
-! ---------- 下联接入交换机 (Trunk, 仅放行对应VLAN) ----------
+#
+# ---------- 下联接入交换机 (Trunk, 仅放行对应VLAN) ----------
 interface GigabitEthernet1/0/5
  description to ASW1
  port link-type trunk
  port trunk allow-pass vlan 10 20 100
-!
+#
 interface GigabitEthernet1/0/6
  description to ASW2
  port link-type trunk
  port trunk allow-pass vlan 30 40 100
-!
+#
 interface GigabitEthernet1/0/7
  description to ASW3
  port link-type trunk
  port trunk allow-pass vlan 50 60 100
-!
-! ---------- 业务 VLANIF + VRRP + DHCP中继 ----------
+#
+# ---------- 业务 VLANIF + VRRP + DHCP中继 ----------
 interface Vlanif10
  ip address 192.168.10.252 255.255.255.0
  vrrp vrid 10 virtual-ip 192.168.10.254
@@ -93,7 +93,7 @@ interface Vlanif10
  dhcp select relay
  dhcp relay server-ip 10.0.1.2
  dhcp relay server-ip 10.0.3.2
-!
+#
 interface Vlanif20
  ip address 192.168.20.252 255.255.255.0
  vrrp vrid 20 virtual-ip 192.168.20.254
@@ -101,7 +101,7 @@ interface Vlanif20
  dhcp select relay
  dhcp relay server-ip 10.0.3.2
  dhcp relay server-ip 10.0.1.2
-!
+#
 interface Vlanif30
  ip address 192.168.30.252 255.255.255.0
  vrrp vrid 30 virtual-ip 192.168.30.254
@@ -111,7 +111,7 @@ interface Vlanif30
  dhcp select relay
  dhcp relay server-ip 10.0.1.2
  dhcp relay server-ip 10.0.3.2
-!
+#
 interface Vlanif40
  ip address 192.168.40.252 255.255.255.0
  vrrp vrid 40 virtual-ip 192.168.40.254
@@ -119,7 +119,7 @@ interface Vlanif40
  dhcp select relay
  dhcp relay server-ip 10.0.3.2
  dhcp relay server-ip 10.0.1.2
-!
+#
 interface Vlanif50
  ip address 192.168.50.252 255.255.255.0
  vrrp vrid 50 virtual-ip 192.168.50.254
@@ -129,7 +129,7 @@ interface Vlanif50
  dhcp select relay
  dhcp relay server-ip 10.0.1.2
  dhcp relay server-ip 10.0.3.2
-!
+#
 interface Vlanif60
  ip address 192.168.60.252 255.255.255.0
  vrrp vrid 60 virtual-ip 192.168.60.254
@@ -137,7 +137,7 @@ interface Vlanif60
  dhcp select relay
  dhcp relay server-ip 10.0.3.2
  dhcp relay server-ip 10.0.1.2
-!
+#
 interface Vlanif100
  description AAA / 管理
  ip address 192.168.100.252 255.255.255.0
@@ -145,18 +145,18 @@ interface Vlanif100
  vrrp vrid 100 priority 120
  vrrp vrid 100 preempt-mode timer delay 5
  vrrp vrid 100 track interface GigabitEthernet1/0/1 reduced 30
-!
-! ---------- MSTP 多实例 ----------
+#
+# ---------- MSTP 多实例 ----------
 stp region-configuration
  region-name CAMPUS
  instance 1 vlan 10 30 50 100
  instance 2 vlan 20 40 60
  active region-configuration
-!
+#
 stp instance 1 root primary
 stp instance 2 root secondary
-!
-! ---------- OSPF area0 (业务口passive, 互联口/BFD活跃) ----------
+#
+# ---------- OSPF area0 (业务口passive, 互联口/BFD活跃) ----------
 ospf 1 router-id 10.255.255.11
  bfd all-interfaces enable
  silent-interface Vlanif10
@@ -178,5 +178,5 @@ ospf 1 router-id 10.255.255.11
   network 192.168.60.0 0.0.0.255
   network 192.168.100.0 0.0.0.255
   network 10.255.255.11 0.0.0.0
-!
+#
 return

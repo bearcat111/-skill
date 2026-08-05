@@ -1,95 +1,95 @@
-! =====================================================================
-! R2 - 华三(H3C Comware V7)出口路由器 : DHCP服务器(全量池) + PAT出公网(ISP2) + OSPF默认路由(cost30备用)
-! 互联: G0/0->DSW1(10.0.3.2)  G0/1->DSW2(10.0.4.2)  G0/2->ISP2(200.1.1.1)
-! =====================================================================
+# =====================================================================
+# R2 - 华三(H3C Comware V7)出口路由器 : DHCP服务器(全量池) + PAT出公网(ISP2) + OSPF默认路由(cost30备用)
+# 互联: G0/0->DSW1(10.0.3.2)  G0/1->DSW2(10.0.4.2)  G0/2->ISP2(200.1.1.1)
+# =====================================================================
 sysname R2
-!
+#
 bfd
-!
-! ---------- 本地账号 (RADIUS不可达兜底) ----------
+#
+# ---------- 本地账号 (RADIUS不可达兜底) ----------
 local-user admin class manage
  password simple Admin@123
  service-type ssh
  authorization-attribute user-role network-admin
-!
+#
 ssh server enable
-!
+#
 interface LoopBack0
  ip address 10.255.255.2 255.255.255.255
-!
-! ---------- 内网侧 ----------
+#
+# ---------- 内网侧 ----------
 interface GigabitEthernet0/0
  description to DSW1
  ip address 10.0.3.2 255.255.255.252
  ospf bfd enable
  bfd min-transmit-interval 100 min-receive-interval 100 detect-multiplier 3
-!
+#
 interface GigabitEthernet0/1
  description to DSW2
  ip address 10.0.4.2 255.255.255.252
  ospf bfd enable
  bfd min-transmit-interval 100 min-receive-interval 100 detect-multiplier 3
-!
-! ---------- 外网侧 (NAT outbound) ----------
+#
+# ---------- 外网侧 (NAT outbound) ----------
 interface GigabitEthernet0/2
  description to ISP2
  ip address 200.1.1.1 255.255.255.252
  nat outbound 2000
-!
-! ---------- NAT (ACL 2000 匹配内网) ----------
+#
+# ---------- NAT (ACL 2000 匹配内网) ----------
 acl basic 2000
  rule 0 permit source 192.168.0.0 0.0.255.255
-!
-! ---------- DHCP 全量地址池 (7个VLAN, 仅.101-.254) ----------
+#
+# ---------- DHCP 全量地址池 (7个VLAN, 仅.101-.254) ----------
 dhcp enable
-!
+#
 dhcp server ip-pool vlan10
  gateway-list 192.168.10.254
  network 192.168.10.0 mask 255.255.255.0
  address range 192.168.10.101 192.168.10.254
  forbidden-address 192.168.10.252 192.168.10.254
-!
+#
 dhcp server ip-pool vlan20
  gateway-list 192.168.20.254
  network 192.168.20.0 mask 255.255.255.0
  address range 192.168.20.101 192.168.20.254
  forbidden-address 192.168.20.252 192.168.20.254
-!
+#
 dhcp server ip-pool vlan30
  gateway-list 192.168.30.254
  network 192.168.30.0 mask 255.255.255.0
  address range 192.168.30.101 192.168.30.254
  forbidden-address 192.168.30.252 192.168.30.254
-!
+#
 dhcp server ip-pool vlan40
  gateway-list 192.168.40.254
  network 192.168.40.0 mask 255.255.255.0
  address range 192.168.40.101 192.168.40.254
  forbidden-address 192.168.40.252 192.168.40.254
-!
+#
 dhcp server ip-pool vlan50
  gateway-list 192.168.50.254
  network 192.168.50.0 mask 255.255.255.0
  address range 192.168.50.101 192.168.50.254
  forbidden-address 192.168.50.252 192.168.50.254
-!
+#
 dhcp server ip-pool vlan60
  gateway-list 192.168.60.254
  network 192.168.60.0 mask 255.255.255.0
  address range 192.168.60.101 192.168.60.254
  forbidden-address 192.168.60.252 192.168.60.254
-!
+#
 dhcp server ip-pool vlan100
  gateway-list 192.168.100.254
  network 192.168.100.0 mask 255.255.255.0
  address range 192.168.100.101 192.168.100.254
  forbidden-address 192.168.100.1 192.168.100.100
  forbidden-address 192.168.100.252 192.168.100.254
-!
-! ---------- 默认路由 (指向ISP2) ----------
+#
+# ---------- 默认路由 (指向ISP2) ----------
 ip route-static 0.0.0.0 0.0.0.0 200.1.1.2
-!
-! ---------- OSPF area0 (默认cost30, 备用) ----------
+#
+# ---------- OSPF area0 (默认cost30, 备用) ----------
 ospf 1 router-id 10.255.255.2
  bfd all-interfaces enable
  silent-interface all
@@ -100,22 +100,22 @@ ospf 1 router-id 10.255.255.2
   network 10.0.4.0 0.0.0.3
   network 10.255.255.2 0.0.0.0
  default-route-advertise cost 30
-!
-! ---------- RADIUS (不可达回退本地) ----------
+#
+# ---------- RADIUS (不可达回退本地) ----------
 radius scheme rad
  primary authentication 192.168.100.100 1812
  primary accounting 192.168.100.100 1813
  key authentication simple Radius@123
  key accounting simple Radius@123
  user-name-format without-domain
-!
+#
 domain system
  authentication login radius local
  authorization login radius local
  accounting login radius local
-!
+#
 user-interface vty 0 63
  authentication-mode scheme
  protocol inbound ssh
-!
+#
 return
