@@ -1,11 +1,71 @@
 {
+  "_doc": "网络项目统一模型（Single Source of Truth）。阶段5经 check_project.py 校验，阶段6 gen_docx.py 与阶段7 gen_configs.py 均从本模型生成。devices/vlans/links/routing/security/services 为工程化结构（P0+）；meta/topology/ledgers/narrative/key_decisions 为文档展示兼容字段，可从工程化结构自动推导或手工维护。",
   "meta": {
     "project_name": "XX园区三层网",
     "author": "AI",
     "date": "2026-08-05",
     "background": "背景描述",
     "objective": "建设目标",
-    "architecture": "三层架构说明"
+    "architecture": "三层架构说明",
+    "scale": {
+      "buildings": 2,
+      "rooms": 10,
+      "endpoints": 500,
+      "bandwidth_mbps": 1000,
+      "budget": "待定",
+      "compliance": "等保二级"
+    }
+  },
+  "devices": [
+    {
+      "hostname": "DSW1",
+      "vendor": "huawei",
+      "model": "S5735",
+      "role": "core",
+      "role_cn": "三层核心",
+      "chassis": "框式/盒式",
+      "mgmt_ip": "10.10.10.11",
+      "mgmt_vlan": 10,
+      "loopback": "1.1.1.1",
+      "interfaces": [
+        {"name": "GE0/0/1", "peer": "FW1:GE1/0/1", "mode": "access", "vlan": 10, "ip": "10.10.10.11/24", "desc": "上联防火墙"},
+        {"name": "GE0/0/24", "peer": "DSW2:GE0/0/24", "mode": "trunk", "allowed_vlans": [10,20,30,40], "aggregation": 1}
+      ],
+      "vrp_version": "VRPv8"
+    }
+  ],
+  "vlans": [
+    {"id": 10, "name": "MGMT", "net": "10.10.10.0/24", "gw": "10.10.10.254", "vrrp": true, "vrrp_vrid": 10, "vrrp_primary": "DSW1"},
+    {"id": 20, "name": "STAFF", "net": "10.20.0.0/24", "gw": "10.20.0.254", "vrrp": true, "vrrp_vrid": 20, "vrrp_primary": "DSW1"}
+  ],
+  "links": [
+    {"a": "DSW1:GE0/0/24", "b": "DSW2:GE0/0/24", "type": "eth-trunk", "id": 1, "mode": "lacp", "vlan_mode": "trunk", "allowed_vlans": [10,20,30,40], "net": "10.99.1.0/30"},
+    {"a": "FW1:GE1/0/1", "b": "DSW1:GE0/0/1", "type": "static", "mode": "access", "vlan": 10, "net": null}
+  ],
+  "routing": {
+    "protocol": "ospf",
+    "process": 1,
+    "router_id_source": "loopback",
+    "areas": {"0": ["10.0.0.0/8"]},
+    "default_route": {"announce": true, "via": "firewall"},
+    "static_routes": [{"dest": "0.0.0.0/0", "nexthop": "200.1.1.2"}]
+  },
+  "security": {
+    "acls": [
+      {"id": 2000, "type": "basic", "purpose": "NAT出方向匹配", "rules": ["permit source 10.0.0.0 0.255.255.255"]},
+      {"id": 3000, "type": "advanced", "purpose": "DMZ互访控制", "rules": ["permit tcp destination 10.40.0.10 0 destination-port eq 80"]}
+    ],
+    "nat": {"mode": "pat", "inside": ["10.0.0.0/8"], "outside_interface": "AR1:GE0/0/1", "public_pool": "200.1.1.1-200.1.1.5"},
+    "zones": {"trust": ["GE1/0/1"], "dmz": ["GE1/0/2"], "untrust": ["GE1/0/0"]},
+    "ha": {"mode": "hrp", "heartbeat": "GE1/0/3", "priority": 120}
+  },
+  "services": {
+    "dhcp": {"server": "DSW1", "pools": [{"vlan": 20, "net": "10.20.0.0/24", "range": "10.20.0.101-10.20.0.254", "gw": "10.20.0.254"}]},
+    "aaa": {"mode": "local_radius", "fallback_local": true, "radius_server": "10.50.0.10"},
+    "snmp": {"community": "public", "trap_host": "10.10.10.100"},
+    "syslog": {"host": "10.10.10.100"},
+    "ntp": {"server": "10.100.100.100"},
+    "bfd": {"interval_ms": 100, "multiplier": 3}
   },
   "topology": "ASCII 拓扑文本（用 \\n 换行）",
   "ledgers": [

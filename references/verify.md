@@ -65,3 +65,65 @@
 
 ## 验收结论模板
 在「设计基线.md / 验收记录」中填写：每项 ✅/❌、异常与处理、遗留风险。全部 ✅ 视为部署成功，可交付。
+
+---
+
+## 三厂商一键巡检命令集（验收提速）
+
+每台设备粘贴下面**对应厂商的整段命令**，按输出逐项核对，比逐条输入更快。命令为通用集合，具体接口/VRRP 组号按实际配置调整。
+
+### 华为 / 华三（VRP / Comware）
+```
+display version
+display current-configuration
+display ip interface brief
+display vlan
+display stp brief
+display vrrp brief
+display ospf peer brief
+display ip routing-table
+display eth-trunk 1
+display bfd session all
+display acl all
+display nat session brief
+display dhcp server ip-in-use
+display access-user
+display dot1x
+display ssh server status
+display snmp-agent sys-info
+display info-center
+```
+> 华三部分命令略有差异：`display link-aggregation verbose`、`display dhcp server ip-in-use` 同、`display ip interface brief` 同。
+
+### 思科（IOS / IOS-XE）
+```
+show version
+show running-config
+show ip interface brief
+show vlan brief
+show spanning-tree
+show vrrp brief
+show ip ospf neighbor
+show ip route
+show etherchannel summary
+show bfd neighbors
+show access-lists
+show ip nat translations
+show ip dhcp binding
+show dot1x all
+show authentication sessions
+show ip ssh
+show snmp
+show logging
+```
+
+### 核对要点（对着输出逐项看）
+- `display ip interface brief`：所有规划接口 Up，地址与模型一致；
+- `display vrrp brief`：奇数 VLAN Master=DSW1、偶数=DSW2；
+- `display ospf peer brief`：全部 Full；
+- `display stp brief`：根桥为规划的 DSW1/DSW2（MST 双根）；
+- `display eth-trunk`：成员全部 Selected；
+- `display nat session brief`：有转换条目（若 NAT）；
+- `display dhcp server ip-in-use`：PC 拿到 .101+ 地址；
+- `display bfd session all`：会话 Up；
+- `display ssh server status`：SSH v2 开启，Telnet/HTTP 关闭。
