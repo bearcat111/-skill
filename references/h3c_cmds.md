@@ -2,6 +2,8 @@
 
 适用：交换机（S5x00/S7x00）、路由器（MSR 系列）。Comware 与华为 VRP 相似但命令字有差异（如 `port link-mode`、`vlan` 直接进、`sysname` 同）。
 
+> **注释符约定**：本文件所有注释/分段符统一用 `#`。华三 Comware 不支持 `!` 作为注释（`!` 在真机/模拟器会报 `Error: Unrecognized command`），切勿在华三配置里使用 `!`。
+
 ## 1. 基础
 ```
 sysname AR1
