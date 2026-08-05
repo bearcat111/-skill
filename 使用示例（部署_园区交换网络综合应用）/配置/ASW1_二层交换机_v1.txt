@@ -1,0 +1,62 @@
+sysname ASW1
+#
+stp mode mstp
+stp region-configuration
+ region-name CAMPUS
+ revision-level 1
+ instance 1 vlan 10 30 50 100
+ instance 2 vlan 20 40 60
+ active region-configuration
+#
+vlan 10
+vlan 20
+#
+port-security enable
+#
+dhcp snooping enable
+dhcp snooping enable vlan 10 20
+#
+arp detection enable vlan 10 20
+#
+mac-address blackhole 8c18-2021-1120 vlan 10
+mac-address blackhole 8c18-2021-1120 vlan 20
+mac-address blackhole 8c18-2021-1120 vlan 30
+mac-address blackhole 8c18-2021-1120 vlan 40
+mac-address blackhole 8c18-2021-1120 vlan 50
+mac-address blackhole 8c18-2021-1120 vlan 60
+#
+interface GigabitEthernet1/0/1
+ port link-mode bridge
+ port link-type trunk
+ port trunk permit vlan 10 20
+ stp root-protection
+ dhcp snooping trust
+ arp detection trust
+#
+interface GigabitEthernet1/0/2
+ port link-mode bridge
+ port link-type trunk
+ port trunk permit vlan 10 20
+ stp root-protection
+ dhcp snooping trust
+ arp detection trust
+#
+interface GigabitEthernet1/0/10
+ port link-mode bridge
+ port access vlan 10
+ stp edged-port
+ port-security max-mac-count 1
+ port-security port-mode autolearn
+ port-security mac-address sticky
+ port-security violation-mode restrict
+#
+interface GigabitEthernet1/0/11
+ port link-mode bridge
+ port access vlan 20
+ stp edged-port
+ port-security max-mac-count 1
+ port-security port-mode autolearn
+ port-security violation-mode restrict
+#
+return
+save

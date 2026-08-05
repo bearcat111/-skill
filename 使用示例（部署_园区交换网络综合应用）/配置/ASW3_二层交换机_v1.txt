@@ -1,0 +1,61 @@
+hostname ASW3
+!
+vlan 50
+vlan 60
+!
+spanning-tree mode mst
+spanning-tree mst configuration
+ name CAMPUS
+ revision 1
+ instance 1 vlan 10,30,50,100
+ instance 2 vlan 20,40,60
+!
+ip dhcp snooping
+ip dhcp snooping vlan 50,60
+ip arp inspection vlan 50,60
+!
+mac-address-table static 8c18.2021.1120 vlan 10 drop
+mac-address-table static 8c18.2021.1120 vlan 20 drop
+mac-address-table static 8c18.2021.1120 vlan 30 drop
+mac-address-table static 8c18.2021.1120 vlan 40 drop
+mac-address-table static 8c18.2021.1120 vlan 50 drop
+mac-address-table static 8c18.2021.1120 vlan 60 drop
+!
+interface GigabitEthernet1/0/1
+ switchport trunk encapsulation dot1q
+ switchport mode trunk
+ switchport trunk allowed vlan 10,20,30,40,50,60
+ spanning-tree guard root
+ ip dhcp snooping trust
+ ip arp inspection trust
+!
+interface GigabitEthernet1/0/2
+ switchport trunk encapsulation dot1q
+ switchport mode trunk
+ switchport trunk allowed vlan 10,20,30,40,50,60
+ spanning-tree guard root
+ ip dhcp snooping trust
+ ip arp inspection trust
+!
+interface GigabitEthernet1/0/10
+ switchport mode access
+ switchport access vlan 50
+ spanning-tree portfast
+ spanning-tree bpduguard enable
+ switchport port-security
+ switchport port-security maximum 1
+ switchport port-security violation restrict
+ switchport port-security mac-address sticky
+!
+interface GigabitEthernet1/0/11
+ switchport mode access
+ switchport access vlan 60
+ spanning-tree portfast
+ spanning-tree bpduguard enable
+ switchport port-security
+ switchport port-security maximum 1
+ switchport port-security violation restrict
+ switchport port-security mac-address sticky
+!
+end
+write memory

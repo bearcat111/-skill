@@ -1,0 +1,66 @@
+sysname ASW2
+#
+vlan batch 30 40
+#
+stp mode mstp
+stp region-configuration
+ region-name CAMPUS
+ revision-level 1
+ instance 1 vlan 10 30 50 100
+ instance 2 vlan 20 40 60
+ active region-configuration
+#
+dhcp enable
+dhcp snooping enable
+dhcp snooping enable vlan 30 40
+#
+arp dynamic inspection enable vlan 30 40
+#
+mac-address blackhole 8c18-2021-1120 vlan 30
+mac-address blackhole 8c18-2021-1120 vlan 40
+mac-address blackhole 8c18-2021-1120 vlan 10
+mac-address blackhole 8c18-2021-1120 vlan 20
+mac-address blackhole 8c18-2021-1120 vlan 50
+mac-address blackhole 8c18-2021-1120 vlan 60
+#
+dot1x enable
+radius-server template DOT1X
+ radius-server authentication 192.168.100.100 1812
+ radius-server shared-key cipher Radius@123
+#
+aaa
+ authentication-scheme dot1x
+  authentication-mode radius
+ domain dot1x
+  authentication-scheme dot1x
+  radius-server template DOT1X
+#
+interface GigabitEthernet1/0/1
+ port link-type trunk
+ port trunk allow-pass vlan 30 40
+ stp root-protection
+ dhcp snooping trusted
+ arp dynamic inspection trust
+#
+interface GigabitEthernet1/0/2
+ port link-type trunk
+ port trunk allow-pass vlan 30 40
+ stp root-protection
+ dhcp snooping trusted
+ arp dynamic inspection trust
+#
+interface GigabitEthernet1/0/10
+ port link-type access
+ port default vlan 30
+ stp edged-port enable
+ dot1x enable
+ dot1x port-control auto
+ dot1x port-method mac
+#
+interface GigabitEthernet1/0/11
+ port link-type access
+ port default vlan 40
+ stp edged-port enable
+#
+return
+save

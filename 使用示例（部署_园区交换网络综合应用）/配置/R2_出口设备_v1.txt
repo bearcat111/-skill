@@ -1,0 +1,80 @@
+sysname R2
+#
+dhcp enable
+#
+track 1 interface GigabitEthernet0/2
+#
+interface LoopBack0
+ ip address 4.4.4.4 255.255.255.255
+#
+interface GigabitEthernet0/0
+ description TO-DSW1
+ ip address 10.0.3.2 255.255.255.252
+ ospf network-type p2p
+#
+interface GigabitEthernet0/1
+ description TO-DSW2
+ ip address 10.0.4.2 255.255.255.252
+ ospf network-type p2p
+#
+interface GigabitEthernet0/2
+ description TO-ISP2
+ ip address 202.1.2.1 255.255.255.252
+#
+ospf 1 router-id 4.4.4.4
+ silent-interface LoopBack0
+ default-route-advertise cost 30
+ area 0.0.0.0
+  network 4.4.4.4 0.0.0.0
+  network 10.0.3.0 0.0.0.3
+  network 10.0.4.0 0.0.0.3
+#
+ip route-static 0.0.0.0 0 202.1.2.2 track 1
+#
+dhcp server ip-pool vlan20
+ gateway-list 192.168.20.254
+ network 192.168.20.0 mask 255.255.255.0
+ dns-list 8.8.8.8
+ excluded-ip-address 192.168.20.1 192.168.20.100
+ excluded-ip-address 192.168.20.252 192.168.20.254
+#
+dhcp server ip-pool vlan40
+ gateway-list 192.168.40.254
+ network 192.168.40.0 mask 255.255.255.0
+ dns-list 8.8.8.8
+ excluded-ip-address 192.168.40.1 192.168.40.100
+ excluded-ip-address 192.168.40.252 192.168.40.254
+#
+dhcp server ip-pool vlan60
+ gateway-list 192.168.60.254
+ network 192.168.60.0 mask 255.255.255.0
+ dns-list 8.8.8.8
+ excluded-ip-address 192.168.60.1 192.168.60.100
+ excluded-ip-address 192.168.60.252 192.168.60.254
+#
+radius scheme RAD
+ primary authentication 192.168.100.100 1812
+ key authentication cipher Radius@123
+#
+domain system
+ authentication login radius local
+ authorization login radius local
+ accounting login radius local
+#
+local-user admin class manage
+ password simple Admin@123
+ service-type ssh terminal
+ authorization-attribute user-role network-admin
+#
+ssh server enable
+ssh user admin service-type stelnet authentication-type password
+#
+user-interface aux 0
+ authentication-mode scheme
+#
+user-interface vty 0 4
+ authentication-mode scheme
+ protocol inbound ssh
+#
+return
+save

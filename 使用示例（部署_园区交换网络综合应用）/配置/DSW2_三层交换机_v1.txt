@@ -1,0 +1,163 @@
+sysname DSW2
+#
+vlan batch 10 20 30 40 50 60 100 999
+#
+stp mode mstp
+stp region-configuration
+ region-name CAMPUS
+ revision-level 1
+ instance 1 vlan 10 30 50 100
+ instance 2 vlan 20 40 60
+ active region-configuration
+stp instance 1 root secondary
+stp instance 2 root primary
+#
+dhcp enable
+#
+interface LoopBack0
+ ip address 2.2.2.2 255.255.255.255
+#
+interface Eth-Trunk1
+ port link-type trunk
+ port trunk allow-pass vlan 10 20 30 40 50 60 100 999
+ mode lacp-static
+ load-balance src-dst-ip
+#
+interface 10GE1/0/1
+ eth-trunk 1
+#
+interface 10GE1/0/2
+ eth-trunk 1
+#
+interface Vlanif999
+ ip address 10.0.0.2 255.255.255.252
+ ospf network-type p2p
+#
+interface Vlanif10
+ ip address 192.168.10.253 255.255.255.0
+ vrrp vrid 10 virtual-ip 192.168.10.254
+ vrrp vrid 10 priority 100
+ dhcp select relay
+ dhcp relay server-ip 10.0.2.2
+#
+interface Vlanif20
+ ip address 192.168.20.253 255.255.255.0
+ vrrp vrid 20 virtual-ip 192.168.20.254
+ vrrp vrid 20 priority 120
+ vrrp vrid 20 track interface GigabitEthernet1/0/1 reduced 30
+ vrrp vrid 20 track interface GigabitEthernet1/0/2 reduced 30
+ dhcp select relay
+ dhcp relay server-ip 10.0.4.2
+#
+interface Vlanif30
+ ip address 192.168.30.253 255.255.255.0
+ vrrp vrid 30 virtual-ip 192.168.30.254
+ vrrp vrid 30 priority 100
+ dhcp select relay
+ dhcp relay server-ip 10.0.2.2
+#
+interface Vlanif40
+ ip address 192.168.40.253 255.255.255.0
+ vrrp vrid 40 virtual-ip 192.168.40.254
+ vrrp vrid 40 priority 120
+ vrrp vrid 40 track interface GigabitEthernet1/0/1 reduced 30
+ vrrp vrid 40 track interface GigabitEthernet1/0/2 reduced 30
+ dhcp select relay
+ dhcp relay server-ip 10.0.4.2
+#
+interface Vlanif50
+ ip address 192.168.50.253 255.255.255.0
+ vrrp vrid 50 virtual-ip 192.168.50.254
+ vrrp vrid 50 priority 100
+ dhcp select relay
+ dhcp relay server-ip 10.0.2.2
+#
+interface Vlanif60
+ ip address 192.168.60.253 255.255.255.0
+ vrrp vrid 60 virtual-ip 192.168.60.254
+ vrrp vrid 60 priority 120
+ vrrp vrid 60 track interface GigabitEthernet1/0/1 reduced 30
+ vrrp vrid 60 track interface GigabitEthernet1/0/2 reduced 30
+ dhcp select relay
+ dhcp relay server-ip 10.0.4.2
+#
+interface Vlanif100
+ ip address 192.168.100.253 255.255.255.0
+ vrrp vrid 100 virtual-ip 192.168.100.254
+ vrrp vrid 100 priority 100
+#
+interface GigabitEthernet1/0/1
+ undo portswitch
+ ip address 10.0.2.1 255.255.255.252
+ ospf network-type p2p
+#
+interface GigabitEthernet1/0/2
+ undo portswitch
+ ip address 10.0.4.1 255.255.255.252
+ ospf network-type p2p
+#
+interface GigabitEthernet1/0/3
+ port link-type trunk
+ port trunk allow-pass vlan 10 20 30 40 50 60 100
+#
+interface GigabitEthernet1/0/4
+ port link-type trunk
+ port trunk allow-pass vlan 10 20 30 40 50 60 100
+#
+interface GigabitEthernet1/0/5
+ port link-type trunk
+ port trunk allow-pass vlan 10 20 30 40 50 60 100
+#
+ospf 1 router-id 2.2.2.2
+ silent-interface Vlanif10
+ silent-interface Vlanif20
+ silent-interface Vlanif30
+ silent-interface Vlanif40
+ silent-interface Vlanif50
+ silent-interface Vlanif60
+ silent-interface Vlanif100
+ area 0.0.0.0
+  network 2.2.2.2 0.0.0.0
+  network 10.0.0.0 0.0.0.3
+  network 10.0.2.0 0.0.0.3
+  network 10.0.4.0 0.0.0.3
+  network 192.168.10.0 0.0.0.255
+  network 192.168.20.0 0.0.0.255
+  network 192.168.30.0 0.0.0.255
+  network 192.168.40.0 0.0.0.255
+  network 192.168.50.0 0.0.0.255
+  network 192.168.60.0 0.0.0.255
+  network 192.168.100.0 0.0.0.255
+#
+radius-server template RAD
+ radius-server authentication 192.168.100.100 1812
+ radius-server shared-key cipher Radius@123
+#
+aaa
+ authentication-scheme sch1
+  authentication-mode radius local
+ authorization-scheme sch2
+  authorization-mode radius local
+ accounting-scheme sch3
+  accounting-mode radius local
+ domain default
+  authentication-scheme sch1
+  authorization-scheme sch2
+  accounting-scheme sch3
+ local-user admin password irreversible-cipher Admin@123
+ local-user admin service-type terminal ssh
+ local-user admin privilege level 15
+#
+stelnet server enable
+ssh user admin authentication-type password
+ssh user admin service-type stelnet
+#
+user-interface con 0
+ authentication-mode aaa
+#
+user-interface vty 0 4
+ authentication-mode aaa
+ protocol inbound ssh
+#
+return
+save
