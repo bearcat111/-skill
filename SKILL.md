@@ -29,12 +29,14 @@ agent_created: true
 
 ## 运行环境与前置准备
 
-- 生成 Word 文档依赖 `python-docx`。首次使用前，在**托管 Python 虚拟环境**中安装（不要污染用户环境）：
-  ```
-  C:/Users/linxun/.workbuddy/binaries/python/versions/3.13.12/python.exe -m venv C:/Users/linxun/.workbuddy/binaries/python/envs/default
-  C:/Users/linxun/.workbuddy/binaries/python/envs/default/Scripts/pip.exe install python-docx
-  ```
-  若已存在虚拟环境，仅执行 `pip install python-docx` 即可。所有脚本均用该虚拟环境解释器运行。
+- 生成 Word 文档依赖 `python-docx`。在**本运行环境提供的 Python 虚拟环境**中安装（不要污染用户全局 Python）：
+  - 路径因运行环境而异，执行时请把 `<PYTHON>` 替换为本环境实际的 Python 解释器路径，`<VENV_DIR>` 替换为虚拟环境目录：
+    ```
+    <PYTHON> -m venv <VENV_DIR>
+    <VENV_DIR>/Scripts/pip.exe install python-docx   # Windows
+    # <VENV_DIR>/bin/pip install python-docx         # Linux / macOS
+    ```
+  - 若虚拟环境已具备 `python-docx`，可跳过安装；脚本运行时使用对应虚拟环境解释器。
 - 为本项目建立独立工作目录，建议：`网络项目/部署_<项目名>/`，文档与配置文件均落在此目录下。
 
 ## 对话式确认纪律（最高优先级，务必遵守）
