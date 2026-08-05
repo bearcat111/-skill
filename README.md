@@ -18,7 +18,8 @@
 | 关键决策确认 | 路由协议、NAT、HA、链路聚合、AAA、监控、DHCP、二层安全、QoS、IPv6、WLAN 等逐项列选项确认 |
 | 自动划址 | `ip_planner.py` 按各 VLAN 终端数自动 VLSM 划址（网段/网关/互联 /30/loopback/DHCP 池） |
 | 方案校验 | `check_project.py` 程序化检查 IP 冲突、端口占用、跨厂商聚合、型号能力等 |
-| 文档生成 | `gen_docx.py` 一键生成 Word 文档（含目录、页码、自动规划表、敏感信息脱敏） |
+| 拓扑绘图 | `gen_topo.py` 从项目模型自动生成**可视化拓扑图**（分层布局、形状/颜色区分、链路接口与网段标注、图例） |
+| 文档生成 | `gen_docx.py` 一键生成 Word 文档（含可视化拓扑图、目录、页码、自动规划表、敏感信息脱敏） |
 | 配置生成 | `gen_configs.py` 从项目模型生成三厂商配置骨架（注释符天然正确、自动带保存命令） |
 | 命令查证 | 三方交叉验证（AI 记忆 + 网络搜索 + cmds.md 参考），确保 CLI 语法准确 |
 | 部署排障 | 阶段 8 交互式纠错：收集报错现场 → 定位根因 → 给更正方案 → 确认闭环 |
@@ -93,6 +94,7 @@ network-deploy/
 ├── README.md                 # 本文件（使用说明）
 ├── scripts/                  # 配套工具脚本
 │   ├── ip_planner.py         # VLSM 自动划址
+│   ├── gen_topo.py           # 可视化拓扑图生成（matplotlib）
 │   ├── check_project.py      # 项目模型静态校验（阶段5必跑）
 │   ├── gen_configs.py        # 逐设备配置骨架生成
 │   ├── gen_docx.py           # Word 项目文档生成
@@ -100,7 +102,7 @@ network-deploy/
 └── references/               # 参考库
     ├── workflow.md           # 各阶段细化清单与提问话术
     ├── web_research.md       # 命令联网查证方法（含锐捷/山石等）
-    ├── topology_examples.md  # ASCII 拓扑范例
+    ├── topology_examples.md  # ASCII 拓扑范例（辅助，正式用 gen_topo.py 出图）
     ├── cisco_cmds.md / huawei_cmds.md / h3c_cmds.md  # 命令速查（对照参考）
     ├── glossary.md           # 概念解释话术库
     ├── verify.md             # 部署验收清单（含三厂商一键巡检）
@@ -139,7 +141,7 @@ network-deploy/
 
 ## 七、注意事项
 
-- **Word 文档生成依赖 `python-docx`**，技能会自动在隔离的虚拟环境中安装，不污染全局 Python；
+- **Word 文档生成依赖 `python-docx`，拓扑图生成依赖 `matplotlib`**，技能会自动在隔离的虚拟环境中安装，不污染全局 Python；
 - 文档与配置含账号密码等敏感信息：对外交付请让技能使用 `--mask-secrets` 脱敏，明文凭据单独加密保存；
 - 配置命令采用"AI 记忆 + 网络搜索 + 参考库"三方交叉验证，**网络不可用时以 AI 记忆为准并会明确告知你哪条命令有冲突风险**，真机部署前建议在 eve-ng 模拟器先行核对；
 - 本项目为强交互式流程：**技能提问时请尽量逐项回答**，说"你决定"只会让技能把推荐项列给你确认，不会跳过决策关卡。

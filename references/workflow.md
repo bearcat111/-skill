@@ -146,10 +146,17 @@ AI 自动补全的非必要项及默认规则（**这些可以自定，但必须
 - **LACP 组号**、**VRRP 组号**、**OSPF 进程号**默认从 1 起。
 
 草案回显内容必须包含：
-1. 拓扑草案（ASCII 框图，参考 `references/topology_examples.md`）；
+1. 拓扑草案（**优先用 `scripts/gen_topo.py` 生成可视化 PNG**，辅助 ASCII 框图，参考 `references/topology_examples.md`）；
 2. 设备台账初稿（命名/型号/IP/互联）；
 3. **关键决策落地点**（明确写出阶段 3 每项决策怎么落地，例如"NAT：R1 做出方向 PAT，匹配 10.0.0.0/8，转换到公网 200.1.1.x"）；
 4. 协议与策略规划（VLAN、OSPF、VRRP、MSTP、LACP、ACL 编号与用途等）。
+
+> **拓扑图工具**：`scripts/gen_topo.py` 从项目模型自动绘制可视化拓扑：
+> ```
+> python scripts/gen_topo.py 项目模型.json -o 拓扑图.png --dpi 150
+> python scripts/gen_topo.py --demo        # 看示例效果
+> ```
+> 绘制规则：按角色分层（互联网/出口/防火墙/核心/汇聚/接入/DMZ），防火墙=菱形红、路由器=圆形蓝、交换机=矩形蓝、服务器=绿、互联网=云形灰；普通链路实线、聚合/堆叠粗线、管理虚线；链路标注两端接口与网段；含图例。依赖 matplotlib（隔离虚拟环境安装）。
 
 > **划址工具**：若用户给了各业务区终端数，用 `scripts/ip_planner.py` 生成 VLSM 划址表：
 > ```
@@ -215,10 +222,10 @@ python scripts/check_project.py 项目模型.json
 
 ## 阶段 6/7 · 输出清单自检
 
-- [ ] Word 文档含：概览、拓扑图、台账表、逐模块详述、**关键决策记录表**
+- [ ] Word 文档含：概览、**可视化拓扑图（gen_topo.py 生成并 --topo-image 嵌入，无图时 ASCII 降级）**、台账表、逐模块详述、**关键决策记录表**
 - [ ] 阶段 5 已运行 `check_project.py 项目模型.json` 且 ERROR 已清零/已与用户确认
 - [ ] 阶段 5 已生成并落盘 `设计基线.md`
-- [ ] 阶段 6 已用 `gen_docx.py` 生成文档（对外交付建议 `--mask-secrets` 脱敏 + `--credentials` 另存凭据）
+- [ ] 阶段 6 已用 `gen_docx.py` 生成文档（对外交付建议 `--mask-secrets` 脱敏 + `--credentials` 另存凭据 + `--topo-image` 嵌入拓扑图）
 - [ ] 阶段 7 已用 `gen_configs.py 项目模型.json --outdir ./配置` 生成配置骨架，并补全差异化部分
 - [ ] 每台设备均有独立 `主机名_角色_v1.txt`
 - [ ] 文件名主机名与文件内 `hostname` 一致

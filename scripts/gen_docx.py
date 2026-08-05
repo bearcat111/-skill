@@ -313,10 +313,12 @@ def write_credentials_docx(creds, out_path):
     print("OK: 已生成明文凭据清单 -> %s（请加密保管）" % out_path)
 
 
-def build(json_path, out_path, mask_secrets=False, no_toc=False, creds_path=None):
+def build(json_path, out_path, mask_secrets=False, no_toc=False, creds_path=None,
+          topo_image=None):
     Document, Pt, RGBColor, qn, WD_ALIGN_PARAGRAPH, WD_TABLE_ALIGNMENT = ensure_docx()
     from docx.shared import Pt as _Pt
     from docx.enum.text import WD_ALIGN_PARAGRAPH
+    from docx.shared import Cm, Inches
 
     with open(json_path, "r", encoding="utf-8") as f:
         model = json.load(f)
@@ -374,23 +376,41 @@ def build(json_path, out_path, mask_secrets=False, no_toc=False, creds_path=None
             rb = p.add_run(meta[key])
             set_cjk(rb, "宋体")
 
-    # 拓扑图
+    # 拓扑图：优先使用外部 PNG（由 gen_topo.py 生成），否则降级为 ASCII 文本
     doc.add_heading("一、网络拓扑图", level=1)
-    topo = model.get("topology", "")
-    if topo:
-        para = doc.add_paragraph()
-        run = para.add_run(topo)
-        run.font.name = "Consolas"
-        run.font.size = Pt(9)
-        rpr2 = run._element.get_or_add_rPr()
-        rf2 = rpr2.find(qn('w:rFonts'))
-        if rf2 is None:
-            from docx.oxml import OxmlElement
-            rf2 = OxmlElement('w:rFonts')
-            rpr2.append(rf2)
-        rf2.set(qn('w:eastAsia'), "宋体")
-        rf2.set(qn('w:ascii'), "Consolas")
-        rf2.set(qn('w:hAnsi'), "Consolas")
+    if topo_image and os.path.exists(topo_image):
+        try:
+            from docx.shared import Inches as _Inches
+            p = doc.add_paragraph()
+            p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            run = p.add_run()
+            # 限制最大宽度 16cm（页面可用宽度），高度按比例
+            run.add_picture(topo_image, width=_Inches(6.3))
+            cap = doc.add_paragraph()
+            cap.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            cr = cap.add_run("（图：拓扑图，来源：scripts/gen_topo.py 自动生成）")
+            set_cjk(cr, "宋体")
+            cr.font.size = Pt(8)
+            cr.font.color.rgb = RGBColor(0x88, 0x88, 0x88)
+        except Exception as e:
+            sys.stderr.write("WARN: 拓扑图插入失败 (%s)，降级为 ASCII\n" % e)
+            topo_image = None
+    if not topo_image:
+        topo = model.get("topology", "")
+        if topo:
+            para = doc.add_paragraph()
+            run = para.add_run(topo)
+            run.font.name = "Consolas"
+            run.font.size = Pt(9)
+            rpr2 = run._element.get_or_add_rPr()
+            rf2 = rpr2.find(qn('w:rFonts'))
+            if rf2 is None:
+                from docx.oxml import OxmlElement
+                rf2 = OxmlElement('w:rFonts')
+                rpr2.append(rf2)
+            rf2.set(qn('w:eastAsia'), "宋体")
+            rf2.set(qn('w:ascii'), "Consolas")
+            rf2.set(qn('w:hAnsi'), "Consolas")
 
     # 台账表
     doc.add_heading("二、设备台账与配置总表", level=1)
@@ -511,10 +531,11 @@ if __name__ == "__main__":
     ap.add_argument("--mask-secrets", action="store_true", help="文档中密码/密钥打码为 ***")
     ap.add_argument("--no-toc", action="store_true", help="不生成目录域")
     ap.add_argument("--credentials", default=None, help="明文凭据另存为独立 docx 路径")
+    ap.add_argument("--topo-image", default=None, help="拓扑图 PNG 路径（由 gen_topo.py 生成），自动插入第一章节")
     args = ap.parse_args()
 
     if not os.path.exists(args.json_path):
         sys.stderr.write("ERROR: 找不到 JSON 模型文件: %s\n" % args.json_path)
         sys.exit(1)
     build(args.json_path, args.out_path, mask_secrets=args.mask_secrets,
-          no_toc=args.no_toc, creds_path=args.credentials)
+          no_toc=args.no_toc, creds_path=args.credentials, topo_image=args.topo_image)

@@ -192,8 +192,15 @@ agent_created: true
 
 基于阶段 1–3，AI 主动补全所有未指定的非必要细节，生成一份**完整草案**回显给用户：
 - 自动分配 VLAN ID（如 10/20/30…）、接口（如 GE0/0/1）、IP 末位、链路聚合组号、router-id（常用 Loopback0 地址）；
-- 画出**拓扑草案**（ASCII 框图，参考 `references/topology_examples.md`）；
+- 画出**拓扑草案**：优先用 `scripts/gen_topo.py` 从项目模型生成**可视化拓扑图 PNG**（角色分层、形状/颜色区分、链路标注接口与网段），再辅以 ASCII 框图（参考 `references/topology_examples.md`）供聊天内快速浏览；
 - 列出设备台账初稿、协议与策略规划、各关键决策的落地点（例如"NAT：在 R1 做出方向 PAT，匹配内网 10.0.0.0/8"）。
+
+> **拓扑图工具**：`scripts/gen_topo.py` 从 `项目模型.json` 的 devices/links 自动绘制（出口路由器/防火墙/核心/汇聚/接入/DMZ 分层 + 形状颜色区分 + 聚合/管理链路样式 + 接口网段标注 + 图例）：
+> ```
+> python scripts/gen_topo.py 项目模型.json -o 拓扑图.png --dpi 150
+> python scripts/gen_topo.py --demo        # 先看示例效果
+> ```
+> 依赖 matplotlib（隔离虚拟环境安装）。
 
 明确告知用户："以下非必要项由我代为规划，**关键决策均已按你上一阶段的确认落地**；请逐项审查，如有需要调整的地方请指出，确认'没问题'后我才进入可行性分析与正式产出。" 待用户明确回复"没问题/确认"后，将草案锁定为正式设计基线，进入阶段 5。
 
@@ -224,15 +231,15 @@ agent_created: true
 调用 `scripts/gen_docx.py` 生成文档。先构造一个 JSON 项目模型（结构见 `references/model_schema.json`，含工程化结构 devices/vlans/links/security/services），写入 `项目模型.json` 后运行脚本：
 
 ```
-python scripts/gen_docx.py 项目模型.json 项目设计文档.docx
+python scripts/gen_docx.py 项目模型.json 项目设计文档.docx --topo-image 拓扑图.png
 # 交付外部时建议脱敏：密码打码为 ***，明文凭据另存加密文件
-python scripts/gen_docx.py 项目模型.json 项目设计文档.docx --mask-secrets --credentials 凭据清单.docx
+python scripts/gen_docx.py 项目模型.json 项目设计文档.docx --mask-secrets --credentials 凭据清单.docx --topo-image 拓扑图.png
 ```
 
 脚本自动：插入目录域（打开文档后 Ctrl+A → F9 更新）、页脚页码、表头加粗底色+跨页重复、列宽自适应；**若模型含工程化结构，自动生成「IP 地址分配总表 / VLAN 规划表 / 互联链路表 / ACL 策略表」**。文档须包含：
 
 1. **项目概览**：背景、目标、三层架构说明；
-2. **拓扑图**：用 ASCII 框线/线段抽象描绘（接入↔汇聚↔核心↔防火墙↔出口↔DMZ），参考 `references/topology_examples.md`；
+2. **拓扑图**：**优先用 `scripts/gen_topo.py` 生成可视化拓扑图 PNG 并嵌入文档**（角色分层布局、形状/颜色区分、链路标注接口网段），无图片时降级为 ASCII 框线图（接入↔汇聚↔核心↔防火墙↔出口↔DMZ），参考 `references/topology_examples.md`；
 3. **台账表（多张表格）**：设备命名(hostname)、品牌型号、角色、管理 IP、互联接口、归属 VLAN、运行协议、认证账号/密码、备注；
 4. **逐模块详述**：用文字解释设计意图与关键点，例如：
    - "ACL 2000 用于出方向 NAT 地址池匹配，仅放行内网网段 10.x/172.x/192.168.x"；
@@ -341,7 +348,7 @@ python scripts/gen_configs.py 项目模型.json --list      # 先看将生成哪
 │   ├── DSW1_三层交换机_v1.txt
 │   ├── ASW1_二层交换机_v1.txt
 │   └── ...
-└── 拓扑图.png（可选，若用户需要可视化另绘）
+└── 拓扑图.png（阶段4/6 用 gen_topo.py 生成的可视化拓扑图）
 ```
 
 ## 重要纪律（务必遵守）
@@ -361,6 +368,7 @@ python scripts/gen_configs.py 项目模型.json --list      # 先看将生成哪
 - `scripts/gen_configs.py` — 逐设备配置骨架生成器（模型 → 各厂商配置，注释符天然正确、自动带保存命令、按 主机名_角色_v1.txt 命名）。
 - `scripts/check_project.py` — 项目模型静态校验器（阶段 5 必跑：IP 冲突/端口重复/跨厂商聚合/型号能力/VLAN 冲突/掩码/HA/DHCP 一致性）。
 - `scripts/ip_planner.py` — VLSM 自动划址器（阶段 4 用：输入各 VLAN 终端数 → 输出网段/网关/互联 /30/loopback/DHCP 池）。
+- `scripts/gen_topo.py` — 可视化拓扑图生成器（从项目模型自动绘制分层拓扑 PNG：角色形状/颜色区分、链路接口与网段标注、图例；依赖 matplotlib）。
 - `scripts/normalize_comments.py` — 按厂商归一化配置文件注释符（思科=`!`、华为/华三=`#`），防止写配置时串味导致粘贴报错。
 - `references/workflow.md` — 各阶段细化清单、决策清单模板、排障流程与提问话术。
 - `references/web_research.md` — 上网查证各厂商（思科/华为/华三/锐捷/山石等）官方配置命令的方法与检索式。
