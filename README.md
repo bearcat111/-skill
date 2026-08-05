@@ -10,7 +10,9 @@
 
 │   ├── topology_examples.md      # 三层架构 ASCII 拓扑范例
 
-│   ├── glossary.md                # ACL/Loopback/VRRP/OSPF cost 等解释话术
+│   ├── glossary.md               # ACL/Loopback/VRRP/OSPF cost 等解释话术
+
+│   ├── web_research.md           # 官网查询命令
 
 │   ├── cisco_cmds.md             # 思科命令速查
 
