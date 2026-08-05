@@ -1,0 +1,79 @@
+hostname R1
+!
+interface Loopback0
+ ip address 3.3.3.3 255.255.255.255
+!
+interface GigabitEthernet0/0
+ description TO-DSW1
+ ip address 10.0.1.2 255.255.255.252
+ ip ospf network point-to-point
+ ip ospf 1 area 0
+!
+interface GigabitEthernet0/1
+ description TO-DSW2
+ ip address 10.0.2.2 255.255.255.252
+ ip ospf network point-to-point
+ ip ospf 1 area 0
+!
+interface GigabitEthernet0/2
+ description TO-ISP1
+ ip address 202.1.1.1 255.255.255.252
+!
+router ospf 1
+ router-id 3.3.3.3
+ passive-interface Loopback0
+ default-information originate metric 10
+!
+track 1 interface GigabitEthernet0/2 line-protocol
+!
+ip route 0.0.0.0 0.0.0.0 202.1.1.2 track 1
+!
+ip dhcp excluded-address 192.168.10.1 192.168.10.100
+ip dhcp excluded-address 192.168.10.252 192.168.10.254
+ip dhcp excluded-address 192.168.30.1 192.168.30.100
+ip dhcp excluded-address 192.168.30.252 192.168.30.254
+ip dhcp excluded-address 192.168.50.1 192.168.50.100
+ip dhcp excluded-address 192.168.50.252 192.168.50.254
+!
+ip dhcp pool vlan10
+ network 192.168.10.0 255.255.255.0
+ default-router 192.168.10.254
+ dns-server 8.8.8.8
+ lease 1
+!
+ip dhcp pool vlan30
+ network 192.168.30.0 255.255.255.0
+ default-router 192.168.30.254
+ dns-server 8.8.8.8
+ lease 1
+!
+ip dhcp pool vlan50
+ network 192.168.50.0 255.255.255.0
+ default-router 192.168.50.254
+ dns-server 8.8.8.8
+ lease 1
+!
+aaa new-model
+!
+radius server AAA-SRV
+ address ipv4 192.168.100.100 auth-port 1812
+ key Radius@123
+!
+aaa authentication login default group radius local
+aaa authentication enable default group radius local
+!
+username admin privilege 15 secret Admin@123
+!
+ip domain-name lab.local
+! crypto key generate rsa modulus 2048   <-- run this exec command once before SSH works
+ip ssh version 2
+!
+line con 0
+ login authentication default
+!
+line vty 0 4
+ login authentication default
+ transport input ssh
+!
+end
+write memory
