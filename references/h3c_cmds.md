@@ -75,7 +75,7 @@ irf-port-configuration active
 ## 6. STP（根桥指定）
 ```
 stp mode rstp
-stp instance 0 root primary
+stp instance 1 root primary
 ```
 
 ## 7. 三层网关 + OSPF
@@ -119,10 +119,10 @@ acl advanced 3000
 acl basic 2000
  rule 5 permit source 192.168.0.0 0.0.255.255
 #
-interface GigabitEthernet0/0/1        ! 出接口
+interface GigabitEthernet0/0/1        # 出接口
  nat outbound 2000
 #
-nat server protocol tcp global 200.1.1.10 80 inside 10.40.0.10 80   ! DMZ 映射
+nat server protocol tcp global 200.1.1.10 80 inside 10.40.0.10 80   # DMZ 映射
 ```
 
 ## 12. AAA / SNMP / Syslog

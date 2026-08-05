@@ -76,6 +76,8 @@ agent_created: true
    →  阶段4 【完整草案·列选项等确认】
    →  阶段5 【可行性分析·列问题/方案·列选项等确认】
    →  阶段6 生成 Word 项目文档   →  阶段7 生成逐设备配置文件
+   →  阶段7.5 交付验收清单（references/verify.md）
+   →  【增强轮次·可选】询问 8 安全加固 / 9 参考补全，若选则生成 v2 文档与 v2 配置
 ```
 
 阶段 1–5 只做"澄清 + 共识"，阶段 6–7 才做"产出"。**阶段 3、4、5 每个都是硬关卡：未拿到用户明确确认不得越过。**
@@ -154,6 +156,9 @@ agent_created: true
 
 **结束条件**：用户对可行性分析的所有风险处理方案明确确认（或改选后再次确认），你已无未决歧义，才进阶段 6。
 
+> **设计基线持久化（阶段 5 结束动作）**：可行性分析全部确认后，把锁定设计写入项目目录 `设计基线.md`（设备清单、VLAN/编址、互联、协议、关键决策、风险方案）。这是阶段 6/7 与后续 v2/v3 增强的唯一依据，也是会话中断后的恢复点。
+> **跨厂商聚合/堆叠硬性规则（踩坑沉淀）**：仅**同厂商**设备间可做 LACP/堆叠（iStack/IRF/vPC/M-LAG）；**跨厂商**上联一律用**静态 Trunk**，禁止跨厂商 LACP（私有协议不互通）。可行性分析必须包含此项检查，违反则改为静态 Trunk 并报用户。
+
 ## 阶段 6 · 生成 Word 项目文档
 
 调用 `scripts/gen_docx.py` 生成文档。先构造一个 JSON 项目模型（结构见脚本头部说明），写入 `项目模型.json` 后运行脚本。文档须包含：
@@ -187,7 +192,23 @@ agent_created: true
 - 华为 → `references/huawei_cmds.md`（必要时 Web 查证华为企业业务文档）
 - 华三 → `references/h3c_cmds.md`（必要时 Web 查证 H3C 官方命令参考）
 
+**注释符按厂商分派（必须严格遵守）**：生成每台配置前，先确定其品牌，再统一使用该品牌的注释符——
+- **思科（Cisco IOS/IOS-XE）**：用 `!` 作注释/分段符；
+- **华为（VRP）/ 华三（Comware）**：用 `#` 作注释/分段符（这同时也是官方配置文件的段落分隔符）。
+
+> ⚠️ **切勿在华为/华三配置里使用 `!`**：VRP/Comware 不把 `!` 当作注释，真机或模拟器会报 `Error: Unrecognized command`，可能中断粘贴部署。写完整台配置后，**必须**运行 `scripts/normalize_comments.py --vendor <cisco|huawei|h3c> --in <文件> --in-place` 把注释符强制归一化到该厂商标准（思科=`!`、华为/华三=`#`）。引用 `references/*.md` 命令时，注释符同样以目标厂商为准，勿照搬示例注释字符到错误厂商。
+
 每台文件须包含完整可执行的配置块：主机名、管理 IP/接口、VLAN、Trunk/Access、LACP、OSPF/IS-IS/静态、VRRP、ACL、NAT、AAA、SNMP/Syslog、BFD/NQA、保存命令（`write memory` / `save`）等，并以"逐行可执行"为标准（使用者直接粘贴即可）。
+
+> **阶段 7.5 验收清单**：阶段 7 所有配置写完后，把 `references/verify.md` 的验收清单交给用户，提示"导入 eve-ng / 真机后逐项验证"；连通性、OSPF 邻居、VRRP 主备、DHCP、NAT、802.1x、STP、聚合、BFD、AAA/SSH 全部 ✅ 视为部署成功（详见 workflow.md 阶段 7.5）。
+
+## 阶段 7 之后 · 增强轮次（8 / 9，用户可选）
+
+阶段 7（含 7.5 验收）完成后，用 `AskUserQuestion` 询问用户是否需要下列增强（可多选）：
+- **8 安全加固基线**：对全网设备叠加 `references/hardening.md` 的加固项（禁用 Telnet/HTTP、仅 SSH v2、管理平面隔离、NTP、Syslog、控制平面保护等）。
+- **9 参考库小补全应用**（已固化进技能参考文件）：拓扑范例 C（纯交换园区）、glossary 增补（MLAG/iStack/IRF、VXLAN、QoS、NTP、route-map/PBR）、MST 实例与 workflow 一致化。
+
+若用户选择任一增强，进入**增强轮次**：以 `设计基线.md` 为依据，在原设计上叠加 8/9 内容，重新生成**版本化交付物**——文档 `项目设计文档_v2.docx`、每台配置 `<主机名>_<角色>_v2.txt`（v2、v3… 依增强轮次递增），旧版本保留不覆盖；文档新增「安全加固说明 / 参考补全说明」章节并说明与 v1 差异；变更部分同样跑 `normalize_comments.py`；最后重新走一次阶段 7.5 验收（仅验证受影响项）。
 
 ## 输出目录结构
 
@@ -217,8 +238,12 @@ agent_created: true
 ## 资源索引
 
 - `scripts/gen_docx.py` — Word 文档生成器（读取 JSON 项目模型）。
+- `scripts/normalize_comments.py` — 按厂商归一化配置文件注释符（思科=`!`、华为/华三=`#`），防止写配置时串味导致粘贴报错。
 - `references/workflow.md` — 各阶段细化清单、决策清单模板与提问话术。
 - `references/web_research.md` — 上网查证思科/华为/华三官方配置命令的方法与检索式。
 - `references/topology_examples.md` — 三层架构 ASCII 拓扑范例。
 - `references/cisco_cmds.md` / `huawei_cmds.md` / `h3c_cmds.md` — 各厂商配置命令速查（记忆内命令；记忆外须 Web 查证）。
-- `references/glossary.md` — ACL、Loopback、VRRP、OSPF cost 等概念的解释话术，供文档详述章节复用。
+- `references/glossary.md` — ACL、Loopback、VRRP、OSPF cost、虚拟化、VXLAN、QoS、NTP、PBR 等概念的解释话术，供文档详述章节复用。
+- `references/verify.md` — 阶段 7.5 部署验收清单（连通性/OSPF/VRRP/DHCP/NAT/802.1x/STP/聚合/BFD/AAA 验证项与查看命令）。
+- `references/hardening.md` — 增强轮次·安全加固基线（禁用明文协议、仅 SSH v2、管理平面隔离、NTP/Syslog/控制平面保护）。
+- `references/model_schema.json` — 项目模型 JSON 模板（含 `key_decisions` 字段），供构造阶段 6 模型时参考。

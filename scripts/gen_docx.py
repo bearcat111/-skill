@@ -33,8 +33,15 @@ JSON 模型结构（详见下方 EXAMPLE）：
   "narrative": [
     {"title": "ACL 2000 说明", "body": "ACL 2000 用于出方向 NAT 地址池匹配……"},
     {"title": "Loopback 与 router-id", "body": "DSW1 的 Loopback0=1.1.1.1……"}
+  ],
+  "key_decisions": [
+    {"decision": "NAT 策略", "choice": "双出口 PAT", "rationale": "内网共享公网地址出网，R1/R2 各做 PAT 互为备份"},
+    {"decision": "路由协议", "choice": "OSPF area 0", "rationale": "园区网通用，快速收敛"}
   ]
 }
+
+校验：脚本会做轻量必填校验（meta.project_name / topology / ledgers / narrative 缺一不可，
+key_decisions 缺失仅告警）。字段完整定义见 references/model_schema.json。
 """
 
 import sys
@@ -73,6 +80,29 @@ def set_cjk(run, font="宋体"):
     rfonts.set(qn('w:hAnsi'), font)
 
 
+def validate(model):
+    """轻量必填校验：缺关键字段给出明确错误；key_decisions 缺失仅警告。"""
+    errors = []
+    if not isinstance(model, dict):
+        errors.append("JSON 根必须是对象")
+        return errors
+    meta = model.get("meta", {})
+    if not isinstance(meta, dict) or not meta.get("project_name"):
+        errors.append("缺少 meta.project_name（项目名称）")
+    if not model.get("topology"):
+        errors.append("缺少 topology（拓扑文本）")
+    if not model.get("ledgers"):
+        errors.append("缺少 ledgers（台账表）")
+    if not model.get("narrative"):
+        errors.append("缺少 narrative（文字详述）")
+    if "key_decisions" not in model:
+        sys.stderr.write(
+            "WARN: 模型未含 key_decisions 字段，文档将缺少『关键决策记录表』；"
+            "建议按 references/model_schema.json 补上阶段3/4/5确认项。\n"
+        )
+    return errors
+
+
 def build(json_path, out_path):
     Document, Pt, RGBColor, qn = ensure_docx()
     from docx.shared import Pt as _Pt
@@ -80,6 +110,11 @@ def build(json_path, out_path):
 
     with open(json_path, "r", encoding="utf-8") as f:
         model = json.load(f)
+
+    errs = validate(model)
+    if errs:
+        sys.stderr.write("ERROR: 项目模型校验失败：\n  - " + "\n  - ".join(errs) + "\n")
+        sys.exit(3)
 
     doc = Document()
 
@@ -160,8 +195,28 @@ def build(json_path, out_path):
                 set_cjk(pr, "宋体")
         doc.add_paragraph("")
 
+    # 关键决策记录（阶段3/4/5 确认项，必含）
+    kd = model.get("key_decisions")
+    if kd:
+        doc.add_heading("三、关键决策记录", level=1)
+        kd_cols = ["决策项", "确认选择", "理由/备注"]
+        kd_table = doc.add_table(rows=1, cols=len(kd_cols))
+        kd_table.style = "Table Grid"
+        for i, col in enumerate(kd_cols):
+            kd_table.rows[0].cells[i].text = ""
+            pr = kd_table.rows[0].cells[i].paragraphs[0].add_run(col)
+            set_cjk(pr, "黑体")
+            pr.bold = True
+        for rec in kd:
+            cells = kd_table.add_row().cells
+            for i, key in enumerate(["decision", "choice", "rationale"]):
+                cells[i].text = ""
+                pr = cells[i].paragraphs[0].add_run(str(rec.get(key, "")))
+                set_cjk(pr, "宋体")
+        doc.add_paragraph("")
+
     # 文字详述
-    doc.add_heading("三、项目详细说明", level=1)
+    doc.add_heading("四、项目详细说明", level=1)
     for item in model.get("narrative", []):
         h = doc.add_heading(item.get("title", "说明"), level=2)
         for run in h.runs:

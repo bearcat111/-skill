@@ -73,7 +73,7 @@ interface Stack-Port1/1
 ## 6. STP（根桥指定）
 ```
 stp mode rstp
-stp instance 0 root primary     ! 设为主根桥
+stp instance 1 root primary     # 设为主根桥
 ```
 
 ## 7. 三层网关 + OSPF
@@ -87,7 +87,7 @@ interface Vlanif20
 ospf 1 router-id 1.1.1.1
  area 0
   network 10.0.0.0 0.255.255.255
- silent-interface Vlanif10      ! 管理网段不建邻居
+ silent-interface Vlanif10      # 管理网段不建邻居
 ```
 
 ## 8. VRRP
@@ -118,10 +118,10 @@ acl number 3000
 acl number 2000
  rule 5 permit source 192.168.0.0 0.0.255.255
 #
-interface GigabitEthernet0/0/1        ! 出接口
+interface GigabitEthernet0/0/1        # 出接口
  nat outbound 2000
 #
-nat server global 200.1.1.10 inside 10.40.0.10        ! DMZ 映射(防火墙语法略有差异)
+nat server global 200.1.1.10 inside 10.40.0.10        # DMZ 映射(防火墙语法略有差异)
 ```
 
 ## 12. USG6000 防火墙（安全域 + 安全策略 + HRP 热备）
@@ -148,8 +148,8 @@ security-policy
   action permit
 #
 hrp enable
-hrp interface GigabitEthernet1/0/3 remote 1.1.2.2   ! 心跳
-hrp priority 120                                    ! 主
+hrp interface GigabitEthernet1/0/3 remote 1.1.2.2   # 心跳
+hrp priority 120                                    # 主
 ```
 
 ## 13. AAA / SNMP / Syslog

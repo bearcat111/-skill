@@ -1,0 +1,28 @@
+{
+  "meta": {
+    "project_name": "XX园区三层网",
+    "author": "AI",
+    "date": "2026-08-05",
+    "background": "背景描述",
+    "objective": "建设目标",
+    "architecture": "三层架构说明"
+  },
+  "topology": "ASCII 拓扑文本（用 \\n 换行）",
+  "ledgers": [
+    {
+      "title": "设备台账总表",
+      "columns": ["主机名", "品牌型号", "角色", "管理IP", "互联接口", "VLAN", "运行协议", "账号/密码", "备注"],
+      "rows": [
+        ["DSW1", "华为S5735", "三层核心", "10.10.10.11", "GE0/0/1↔FW1", "10,20,30", "OSPF/VRRP", "admin/***", "主"]
+      ]
+    }
+  ],
+  "narrative": [
+    {"title": "ACL 2000 说明", "body": "ACL 2000 用于出方向 NAT 地址池匹配……"},
+    {"title": "Loopback 与 router-id", "body": "DSW1 的 Loopback0=1.1.1.1……"}
+  ],
+  "key_decisions": [
+    {"decision": "NAT 策略", "choice": "双出口 PAT", "rationale": "内网共享公网地址出网，R1/R2 各做 PAT 互为备份"},
+    {"decision": "路由协议", "choice": "OSPF area 0", "rationale": "园区网通用，快速收敛"}
+  ]
+}
