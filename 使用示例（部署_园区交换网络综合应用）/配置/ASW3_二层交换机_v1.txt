@@ -1,61 +1,70 @@
+! =====================================================================
+! ASW3 - 思科(Cisco IOS)接入交换机 : PC5(VLAN50), PC6(VLAN60)
+! 双上联DSW1/DSW2(Trunk) + 根桥/环路保护 + DHCP Snooping + DAI + MAC黑名单
+! =====================================================================
 hostname ASW3
 !
-vlan 50
-vlan 60
+vlan 50,60,100
 !
+! ---------- MSTP 多实例 ----------
 spanning-tree mode mst
 spanning-tree mst configuration
  name CAMPUS
- revision 1
  instance 1 vlan 10,30,50,100
  instance 2 vlan 20,40,60
 !
-ip dhcp snooping
-ip dhcp snooping vlan 50,60
-ip arp inspection vlan 50,60
-!
-mac-address-table static 8c18.2021.1120 vlan 10 drop
-mac-address-table static 8c18.2021.1120 vlan 20 drop
-mac-address-table static 8c18.2021.1120 vlan 30 drop
-mac-address-table static 8c18.2021.1120 vlan 40 drop
-mac-address-table static 8c18.2021.1120 vlan 50 drop
-mac-address-table static 8c18.2021.1120 vlan 60 drop
-!
-interface GigabitEthernet1/0/1
+! ---------- 双上联 (Trunk, 标准dot1q封装) ----------
+interface GigabitEthernet0/1
+ description to DSW1
  switchport trunk encapsulation dot1q
  switchport mode trunk
- switchport trunk allowed vlan 10,20,30,40,50,60
+ switchport trunk allowed vlan 50,60,100
  spanning-tree guard root
- ip dhcp snooping trust
- ip arp inspection trust
+ spanning-tree guard loop
 !
-interface GigabitEthernet1/0/2
+interface GigabitEthernet0/2
+ description to DSW2
  switchport trunk encapsulation dot1q
  switchport mode trunk
- switchport trunk allowed vlan 10,20,30,40,50,60
+ switchport trunk allowed vlan 50,60,100
  spanning-tree guard root
- ip dhcp snooping trust
- ip arp inspection trust
+ spanning-tree guard loop
 !
-interface GigabitEthernet1/0/10
+! ---------- 主机端口 (portfast) ----------
+interface GigabitEthernet0/11
+ description PC5
  switchport mode access
  switchport access vlan 50
  spanning-tree portfast
- spanning-tree bpduguard enable
- switchport port-security
- switchport port-security maximum 1
- switchport port-security violation restrict
- switchport port-security mac-address sticky
 !
-interface GigabitEthernet1/0/11
+interface GigabitEthernet0/12
+ description PC6
  switchport mode access
  switchport access vlan 60
  spanning-tree portfast
- spanning-tree bpduguard enable
- switchport port-security
- switchport port-security maximum 1
- switchport port-security violation restrict
- switchport port-security mac-address sticky
+!
+! ---------- DHCP Snooping + DAI ----------
+ip dhcp snooping
+ip dhcp snooping vlan 50,60,100
+interface GigabitEthernet0/1
+ ip dhcp snooping trust
+interface GigabitEthernet0/2
+ ip dhcp snooping trust
+ip arp inspection vlan 50,60,100
+interface GigabitEthernet0/1
+ ip arp inspection trust
+interface GigabitEthernet0/2
+ ip arp inspection trust
+!
+! ---------- MAC 黑名单 (丢弃该源MAC) ----------
+mac address-table static 8c18.2021.1120 vlan 50 drop
+mac address-table static 8c18.2021.1120 vlan 60 drop
+mac address-table static 8c18.2021.1120 vlan 100 drop
+!
+! ---------- 管理 SVI ----------
+interface Vlan100
+ ip address 192.168.100.13 255.255.255.0
+!
+ip default-gateway 192.168.100.254
 !
 end
-write memory
