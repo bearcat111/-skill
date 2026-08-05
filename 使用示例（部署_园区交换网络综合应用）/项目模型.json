@@ -1,75 +1,86 @@
 {
   "meta": {
-    "project_name": "园区交换网络综合应用（实验三）",
-    "author": "network-deploy 技能生成",
+    "project_name": "园区交换网络综合应用",
+    "author": "network-deploy 技能 (AI)",
     "date": "2026-08-05",
-    "background": "某公司的园区网，按实验三需求建设：双出口路由器经双 ISP 接入因特网，双汇聚交换机作为各 VLAN 网关并互为 VRRP 备份，三台接入交换机双归属到两台汇聚，PC 经 DHCP 获取地址，AAA 服务器提供 802.1x 与 RADIUS 认证。",
-    "objective": "在满足全部实验需求（DHCP/DHCP中继、MSTP、VRRP、端口安全、DHCP Snooping、DAI、802.1x、SSH+AAA、OSPF 与出口优选切换）的前提下，输出可直接在 eve-ng 模拟环境中落地的设备配置。",
-    "architecture": "经典三层（接入—汇聚—核心合一）＋双出口。汇聚 DSW1/DSW2 为三层网关与 VRRP 主备，接入 ASW 双上联；出口 R1(思科)/R2(华三) 双归属到两台汇聚并各接一个 ISP。厂商混合：DSW1/DSW2/ASW2=华为VRP，ASW1=华三Comware，ASW3=思科IOS，R1=思科IOS，R2=华三Comware。"
+    "background": "某园区网需实现多业务 VLAN 隔离、网关冗余、链路高可用、OSPF 快速收敛与多层安全防护。本项目在 eve-ng 模拟器中落地，设备型号按各厂商常用镜像自选（思科 IOS / 华为 CE12800 VRP / 华三 Comware V7），厂商与型号由实验文档指定。",
+    "objective": "让各 PC 经 DHCP 获取地址并能访问 AAA；实现 VRRP 主备与上行故障自动倒换；OSPF 快速收敛且主机/服务器不收 OSPF 报文；双出口（R1 优选、R1 故障切 R2）出网；部署端口安全、DHCP Snooping、DAI、802.1x、MAC 黑名单、SSH+AAA 等安全机制。",
+    "architecture": "经典三层架构：接入层(ASW1/2/3)双链上联汇聚层(DSW1/2)，汇聚层作各 VLAN 网关并运行 VRRP+MSTP，汇聚与出口路由器 R1/R2 以口字型互联；DSW 间以 LACP+VLANIF 做三层互联。无独立防火墙，出口由 R1/R2 承担 NAT 与默认路由。"
   },
-  "topology": "               [ ISP1 ]            [ ISP2 ]\n                 |                   |\n            GE0/2|              GE0/2|\n         [ R1 思科 ]          [ R2 华三 ]\n         DHCP:10/30/50         DHCP:20/40/60\n         10.0.1.2  10.0.3.2  10.0.2.2  10.0.4.2\n            |   \\       /       \\   |\n            |    \\     /         \\  |\n        GE1/0/1  \\   /           \\  GE1/0/2\n                 \\ /             \\ /\n      [ DSW1 华为CE12800 ]==Eth-Trunk1(LACP)==[ DSW2 华为CE12800 ]\n      VRRP主:10/30/50/100        VRRP主:20/40/60\n      VLANIF999 10.0.0.1/30      VLANIF999 10.0.0.2/30\n            |  \\              /  |\n        GE1/0/3 \\          /  GE1/0/3\n              \\        /\n        ┌─────┴──┐    ┌──┴─────┐\n   GE1/0/1│  GE1/0/1│  │GE1/0/2  │GE1/0/2\n [ASW1华三]  [ASW2华为]  [ASW3思科]   (各双上联)\n  PC1(10)   PC3(30,dot1x) PC5(50)\n  PC2(20)   PC4(40)       PC6(60)\n\n   AAA服务器(手工IP 192.168.100.100, VLAN100) → DSW1 GE1/0/24",
+  "topology": "          ISP1(100.1.1.2)          ISP2(200.1.1.2)\n                |                      |\n          [R1·Cisco]            [R2·H3C]         <- 出口, 各做PAT\n          10.0.1/10.0.2          10.0.3/10.0.4      (口字型互联)\n                \\      /\\      /\n                 \\    /  \\    /\n              [DSW1·华为CE]===LACP/VLANIF999===[DSW2·华为CE]   <- 汇聚, VRRP+MSTP根\n                 |  \\    /  |  \\\n            trunk|   \\  /   |   \\ trunk\n                 |    \\/    |    \\/\n              [ASW1]  [ASW2]  [ASW3]      <- 接入, 各双链上联两台DSW\n               H3C    华为CE   Cisco\n              PC1,2   PC3,4   PC5,6\n             (PC1端口 (PC3      AAA(192.168.100.100)\n              安全)   802.1x)   接ASW2·VLAN100",
   "ledgers": [
     {
-      "title": "一、设备台账总表",
-      "columns": ["主机名", "品牌/型号(假设镜像)", "角色", "关键功能", "VRRP主备", "备注"],
+      "title": "设备台账总表",
+      "columns": ["主机名","品牌/型号","角色","管理IP","互联接口","归属VLAN","运行协议","账号/密码","备注"],
       "rows": [
-        ["DSW1", "华为CE12800(VRP8)", "三层汇聚交换机", "网关/VRRP/OSPF/MSTP/LACP/DHCP中继", "VLAN10/30/50/100主;VLAN20/40/60备", "Loopback0=1.1.1.1"],
-        ["DSW2", "华为CE12800(VRP8)", "三层汇聚交换机", "网关/VRRP/OSPF/MSTP/LACP/DHCP中继", "VLAN20/40/60主;VLAN10/30/50/100备", "Loopback0=2.2.2.2"],
-        ["ASW1", "华三S9850(Comware)", "二层接入交换机", "端口安全/Sticky/黑名单/Snooping/DAI", "—", "接PC1(VLAN10)、PC2(VLAN20)"],
-        ["ASW2", "华为CE(VRP)", "二层接入交换机", "802.1x(PC3)/Snooping/DAI/黑名单", "—", "接PC3(VLAN30,dot1x)、PC4(VLAN40)"],
-        ["ASW3", "思科IOS(L2)", "二层接入交换机", "端口安全/黑名单/Snooping/DAI", "—", "接PC5(VLAN50)、PC6(VLAN60)"],
-        ["R1", "思科IOS路由器", "出口路由器", "DHCP服务器(10/30/50)/OSPF/默认下发(优)", "—", "接ISP1(202.1.1.0/30)"],
-        ["R2", "华三路由器(Comware)", "出口路由器", "DHCP服务器(20/40/60)/OSPF/默认下发(备)", "—", "接ISP2(202.1.2.0/30)"]
+        ["R1","思科 IOS 路由器","出口设备","10.255.255.1","G0/0->DSW1,G0/1->DSW2,G0/2->ISP1","-","OSPF/NAT/DHCP","admin/Admin@123","PAT出ISP1,默认路由metric10"],
+        ["R2","华三 Comware V7 路由器","出口设备","10.255.255.2","G0/0->DSW1,G0/1->DSW2,G0/2->ISP2","-","OSPF/NAT/DHCP","admin/Admin@123","PAT出ISP2,默认路由cost30"],
+        ["DSW1","华为 CE12800 (VRP)","三层交换机","10.255.255.11","GE1/0/1->R1,GE1/0/3->R2,GE1/0/9-10->DSW2","10,20,30,40,50,60,100","OSPF/VRRP/MSTP/LACP","admin/Admin@123","主:VLAN10/30/50/100"],
+        ["DSW2","华为 CE12800 (VRP)","三层交换机","10.255.255.12","GE1/0/1->R1,GE1/0/3->R2,GE1/0/9-10->DSW1","10,20,30,40,50,60,100","OSPF/VRRP/MSTP/LACP","admin/Admin@123","主:VLAN20/40/60"],
+        ["ASW1","华三 S9850 (Comware V7)","二层交换机","192.168.100.11","GE1/0/1->DSW1,GE1/0/2->DSW2","10,20,100","STP/PortSec/DAI","-","PC1端口安全+Sticky"],
+        ["ASW2","华为 CE (VRP)","二层交换机","192.168.100.12","GE1/0/1->DSW1,GE1/0/2->DSW2","30,40,100","STP/802.1x/DAI","-","PC3 802.1x(AAA)"],
+        ["ASW3","思科 IOS 交换机","二层交换机","192.168.100.13","G0/1->DSW1,G0/2->DSW2","50,60,100","STP/DAI","-","-"]
       ]
     },
     {
-      "title": "二、VLAN 与 IP 编址表",
-      "columns": ["VLAN", "网段", "网关(VRRP VIP)", "DSW1实IP", "DSW2实IP", "DHCP服务器", "主机/设备"],
+      "title": "VLAN / IP 编址表",
+      "columns": ["VLAN","业务","网段","VRRP虚网关","DSW1实IP","DSW2实IP","主/备"],
       "rows": [
-        ["10", "192.168.10.0/24", "192.168.10.254", "192.168.10.252", "192.168.10.253", "R1", "PC1"],
-        ["20", "192.168.20.0/24", "192.168.20.254", "192.168.20.252", "192.168.20.253", "R2", "PC2"],
-        ["30", "192.168.30.0/24", "192.168.30.254", "192.168.30.252", "192.168.30.253", "R1", "PC3"],
-        ["40", "192.168.40.0/24", "192.168.40.254", "192.168.40.252", "192.168.40.253", "R2", "PC4"],
-        ["50", "192.168.50.0/24", "192.168.50.254", "192.168.50.252", "192.168.50.253", "R1", "PC5"],
-        ["60", "192.168.60.0/24", "192.168.60.254", "192.168.60.252", "192.168.60.253", "R2", "PC6"],
-        ["100", "192.168.100.0/24", "192.168.100.254", "192.168.100.252", "192.168.100.253", "手工", "AAA服务器(192.168.100.100)"]
+        ["10","PC1","192.168.10.0/24",".254",".252",".253","主DSW1/备DSW2"],
+        ["20","PC2","192.168.20.0/24",".254",".252",".253","主DSW2/备DSW1"],
+        ["30","PC3","192.168.30.0/24",".254",".252",".253","主DSW1/备DSW2"],
+        ["40","PC4","192.168.40.0/24",".254",".252",".253","主DSW2/备DSW1"],
+        ["50","PC5","192.168.50.0/24",".254",".252",".253","主DSW1/备DSW2"],
+        ["60","PC6","192.168.60.0/24",".254",".252",".253","主DSW2/备DSW1"],
+        ["100","AAA","192.168.100.0/24",".254",".252",".253","主DSW1/备DSW2"]
       ]
     },
     {
-      "title": "三、互联链路地址表（A类10.x/30，口字型）",
-      "columns": ["链路", "DSW端接口 / IP", "对端设备·接口 / IP", "掩码"],
+      "title": "互联链路表 (/30, A类 10.x)",
+      "columns": ["链路","网段","左端","右端"],
       "rows": [
-        ["DSW1—DSW2(三层互联)", "VLANIF999 = 10.0.0.1", "DSW2 VLANIF999 = 10.0.0.2", "/30"],
-        ["DSW1—R1", "GE1/0/1 = 10.0.1.1", "R1 G0/0 = 10.0.1.2", "/30"],
-        ["DSW2—R1", "GE1/0/1 = 10.0.2.1", "R1 G0/1 = 10.0.2.2", "/30"],
-        ["DSW1—R2", "GE1/0/2 = 10.0.3.1", "R2 G0/0 = 10.0.3.2", "/30"],
-        ["DSW2—R2", "GE1/0/2 = 10.0.4.1", "R2 G1/0/1 = 10.0.4.2", "/30"],
-        ["R1—ISP1", "G0/2 = 202.1.1.1", "ISP1 = 202.1.1.2", "/30"],
-        ["R2—ISP2", "G0/2 = 202.1.2.1", "ISP2 = 202.1.2.2", "/30"]
+        ["DSW1<->DSW2 (LACP·VLANIF999)","10.0.0.0/30","DSW1 .1","DSW2 .2"],
+        ["DSW1<->R1","10.0.1.0/30","DSW1 .1","R1 .2"],
+        ["DSW2<->R1","10.0.2.0/30","DSW2 .1","R1 .2"],
+        ["DSW1<->R2","10.0.3.0/30","DSW1 .1","R2 .2"],
+        ["DSW2<->R2","10.0.4.0/30","DSW2 .1","R2 .2"],
+        ["R1<->ISP1","100.1.1.0/30","R1 .1","ISP1 .2"],
+        ["R2<->ISP2","200.1.1.0/30","R2 .1","ISP2 .2"]
       ]
     },
     {
-      "title": "四、MST 实例与根桥规划",
-      "columns": ["MST实例", "映射VLAN", "主根桥", "备根桥"],
+      "title": "MSTP 实例与根桥",
+      "columns": ["MST实例","VLAN","根桥","备根"],
       "rows": [
-        ["instance 1", "10, 30, 50, 100", "DSW1", "DSW2"],
-        ["instance 2", "20, 40, 60", "DSW2", "DSW1"]
+        ["instance 1","10,30,50,100","DSW1","DSW2"],
+        ["instance 2","20,40,60","DSW2","DSW1"]
+      ]
+    },
+    {
+      "title": "关键决策记录(阶段3-5确认)",
+      "columns": ["决策项","确认结果"],
+      "rows": [
+        ["NAT 策略","双出口 PAT：R1 出 ISP1、R2 出 ISP2，各自 overload 复用出口 IP"],
+        ["DHCP 方案","R1/R2 均建全量地址池(.101-.254)，接入侧中继选主(奇VLAN主R1/偶VLAN主R2)；接受极小同段冲突风险"],
+        ["出口优选","OSPF 下发默认路由：R1 metric10(优选)、R2 cost30(备用)；R1-ISP 口 down 则默认撤销自动切 R2"],
+        ["监控检测","仅启用 BFD(100ms)实现 OSPF 快速收敛；不配 SNMP/Syslog"],
+        ["VRRP 上行跟踪","DSW1 奇VLAN/DSW2 偶VLAN 的 VRRP track 上行口 reduced 30，上行故障自动倒换"],
+        ["命令准确性","已联网核对华为CE(DAI=`arp anti-attack check user-bind enable`、802.1x=NAC)、华三V7(DAI=`arp detection`)、思科IOS(DAI=`ip arp inspection`)"]
       ]
     }
   ],
   "narrative": [
-    {"title": "1. 总体架构与厂商选择", "body": "本实验为典型三层园区网，按文档指定的厂商落地：汇聚与 ASW2 为华为VRP，ASW1为华三Comware，ASW3为思科IOS，出口R1为思科、R2为华三。由于是 eve-ng 模拟环境，未指定具体型号，文中型号(如CE12800/S9850)为对应厂商在 eve-ng 中常用镜像的假设，请按你实际加载的镜像核对命令差异（多数命令通用）。"},
-    {"title": "2. VLAN 与网关（VRRP）规划", "body": "共 7 个 VLAN：业务 10/20/30/40/50/60 与 管理/AAA 100。每台汇聚为每个 VLAN 起一个 SVI（DSW1用 .252、DSW2用 .253），VRRP 虚拟网关统一为 .254，终端指向 .254。主备按奇数/偶数拆分：VLAN10/30/50/100 优选 DSW1 为主（priority 120）、DSW2 为备；VLAN20/40/60 优选 DSW2 为主、DSW1 为备。这样流量按 VLAN 分担，且互为备份。"},
-    {"title": "3. VRRP 上行跟踪与自动切换", "body": "为在‘汇聚上行链路故障’时自动倒换，每个 VRRP 组 track 本机两条上行接口（GE1/0/1 去 R1、GE1/0/2 去 R2），任一条 down 即 priority 降 30（120→90，低于对端 100），对端接管主网关，业务经另一台汇聚的上行继续出网。"},
-    {"title": "4. MSTP 实例与根桥", "body": "全网统一 MST 域：region-name=CAMPUS，revision=1。instance 1 承载 VLAN10/30/50/100，主根桥 DSW1、备 DSW2；instance 2 承载 VLAN20/40/60，主根桥 DSW2、备 DSW1。根桥手动指定避免了选举震荡，并与 VRRP 主备保持一致，减少跨设备的次优路径。"},
-    {"title": "5. 802.3ad 链路聚合（LACP）", "body": "两台汇聚之间用 Eth-Trunk1 绑定多条直连链路（示例 10GE1/0/1、10GE1/0/2），mode lacp-static，负载分担方式 load-balance src-dst-ip，即按源/目的 IP 哈希，使同一会话的往返走同一条物理链路、不同会话尽量均摊，既增带宽又防单链故障。"},
-    {"title": "6. OSPF 与默认路由（出口优选+故障切换）", "body": "园区网启用 OSPF 并划入 area 0，所有 SVI 与互联 /30 均通告；主机侧 SVI 设 silent-interface 避免向终端发 OSPF Hello；互联口设 network-type p2p 加速收敛。R1、R2 各以静态默认路由指向各自 ISP，并用 track 关联 ISP 接口：R1 的默认路由下发 OSPF 时 metric=10（优选），R2 为 metric=30（备用）。R1-ISP 链路故障→track 使 R1 的静态默认被撤→不再向 OSPF 下发默认→各 VLAN 改走 R2 的默认，实现‘优先 R1、R1 故障切 R2’。"},
-    {"title": "7. DHCP：服务器、地址池与中继", "body": "两台出口路由器兼作 DHCP 服务器。为避免两台服务器同网段分配冲突，按 VLAN 拆分：R1 负责 VLAN10/30/50，R2 负责 VLAN20/40/60。各地址池 network 为对应 /24，排除 .1–.100 与 .252–.254（网关/真实IP），因此主机只能拿到 .101–.251 区间（满足‘仅分配 .101–.254’意图）。汇聚交换机 SVI 上配 dhcp select relay 并指向对应路由器互联 IP（如 VLAN10→10.0.1.2），由汇聚把 DHCP 请求中继给路由器。"},
-    {"title": "8. 端口安全与 MAC 黑名单（ASW1/ASW3）", "body": "接入交换机面向 PC 的端口启用端口安全：max-mac-count 1 + violation restrict（超限仅告警并丢弃，不关端口），防止 MAC 泛洪与私接。PC1 所在端口额外使用 sticky（port-security mac-address sticky），锁定首学 MAC，任何非 PC1 的主机都无法通过该口接入。黑名单 MAC 8C-18-20-21-11-20 在接入交换机上以 blackhole/static-drop 方式禁止其访问各 VLAN。"},
-    {"title": "9. DHCP Snooping 与 DAI", "body": "在接入交换机开启 DHCP Snooping（仅上行口 trust，其余 untrust），阻断非法 DHCP 服务器；并开启动态 ARP 检测（DAI / arp inspection），依据 snooping 绑定表校验 ARP，抑制 ARP 欺骗与 IP 冒用。上行口设为 trust，避免误丢合法 ARP。"},
-    {"title": "10. 802.1x 认证（PC3，ASW2）", "body": "PC3（Win7）经 ASW2 接入时，端口 dot1x port-control auto，认证方式走 AAA/RADIUS（RADIUS 服务器即 AAA 服务器 192.168.100.100:1812）。终端需启用 802.1x  supplicant 并输入合法账号，认证通过前无法入网。此为‘可靠接入’的关键控制点。"},
-    {"title": "11. SSH + AAA 远程登录（所有三层设备）", "body": "DSW1/DSW2/R1/R2 仅允许 SSHv2 远程登录，登录认证走 AAA：优先 RADIUS（指向 AAA 服务器），当 RADIUS 不可达时自动回退本地数据库（local-user admin），保证‘认证服务器挂了也能管设备’。console 与 vty 均绑定 AAA。"},
-    {"title": "12. 部署顺序与验证建议", "body": "建议顺序：① 起设备、配 hostname/Loopback；② 配 VLAN、Trunk、MSTP；③ 配 DSW 间 LACP 与三层互联；④ 配 SVI/VRRP；⑤ 配 OSPF 与默认路由(track)；⑥ 配 DHCP 服务器与中继；⑦ 配端口安全/黑名单/Snooping/DAI；⑧ 配 802.1x；⑨ 配 SSH+AAA。验证：各 PC 应拿到 .101+ 地址且能 ping 通 AAA(192.168.100.100)；shutdown R1 的 ISP 口，确认默认路由切到 R2、主机仍能出网；shutdown 某汇聚上行，确认 VRRP 倒换。"},
-    {"title": "13. 关键风险与注意事项", "body": "① 华为 DSW 的 DAI 命令(arp dynamic inspection)与 dot1x 细节随 VRP 版本略有差异，落盘前请按镜像版本核对；② DHCP 采用按 VLAN 拆分以避免双服务器同段冲突，若需‘双服务器同 VLAN 热备’应改为主备式中继；③ 文档未要求 NAT，本方案按纯路由实现（ISP 为模拟网），如需真实出网请在 R1/R2 补 PAT；④ 设备型号为假设，命令以对应厂商 CLI 为准。"}
+    {"title":"一、NAT（双出口 PAT）说明","body":"R1、R2 各在面向 ISP 的出口接口做 PAT(地址复用)。R1 用 `ip nat inside source list NAT-INSIDE interface Gi0/2 overload`，ACL 2000 放行整个 192.168.0.0/16 内网；R2 用 `nat outbound 2000`(ACL 2000 同义)。`inside` 口为朝向 DSW 的互联口，`outside` 口为 ISP 口。内网主机经 OSPF 默认路由选中出口后，源地址被复用为对应出口的公网 IP(100.1.1.1 / 200.1.1.1)，从而访问 ISP 模拟网。"},
+    {"title":"二、VRRP 主备与上行跟踪","body":"各 VLAN 在 DSW1/DSW2 上各起一个 VRRP 组(vrid=VLAN ID)，虚拟网关 .254。奇 VLAN(10/30/50/100) DSW1 优先级120为主、DSW2 100为备；偶 VLAN(20/40/60) 反之。为防“网关在却出不去”，DSW1 的奇VLAN组 `track interface GE1/0/1 reduced 30`——一旦 R1 上行口故障，优先级降至90(<100)，DSW2 接管主角色；DSW2 偶VLAN组同理 track 其 R1 上行口。R1 整体故障时会触发两侧切换，流量经仍存活的 R2 链路出网。"},
+    {"title":"三、OSPF 与默认路由优选/故障切换","body":"R1、R2、DSW1、DSW2 均运行 OSPF area 0。R1 `default-information originate metric 10`、R2 `default-route-advertise cost 30`，故 DSW 学到两条默认路由时优选 R1(metric 更小)。R1 的静态默认 `ip route 0.0.0.0 0.0.0.0 Gi0/2 100.1.1.2` 为接口路由——当 ISP1 链路 down，该静态路由消失，R1 不再向 OSPF 通告默认，DSW 随即改用 R2 的默认路由，实现“优先 R1、故障切 R2”。业务 VLANIF 与管理口设为 passive/silent，主机与 AAA 服务器不会收到 OSPF Hello。"},
+    {"title":"四、BFD 快速收敛","body":"在 DSW<->R、DSW<->DSW 的 OSPF 接口启用 BFD，检测间隔 100ms、乘数3(约300ms判定故障)。配合 `ospf bfd enable` / `bfd all-interfaces enable`，链路或邻居中断时 OSPF 在亚秒级撤销路由，满足实验“快速收敛”要求。"},
+    {"title":"五、DHCP 中继与地址池","body":"R1、R2 均建立 7 个 VLAN 的全量地址池，范围限定 .101-.254(思科用 `ip dhcp excluded-address` 排除 .1-.100 与网关/.252/.253；华三用 `address range` + `forbidden-address`)。接入交换机不做服务器，由各 DSW 的 VLANIF 做 `dhcp relay`(华为) / `ip helper-address`(思科，本实验 DSW 为华为故用 relay)，奇 VLAN 指向 R1 主、R2 备，偶 VLAN 指向 R2 主、R1 备，实现“中继选主”。"},
+    {"title":"六、端口安全与 MAC 黑名单","body":"ASW1 的 PC1 口(GE1/0/11)启用端口安全：`port-security enable` + `port-mode sticky` + `max-mac-count 1`，首个学习的 MAC 被粘住，后续任何 MAC 接入即被丢弃，达成“仅 PC1 可接入”。全网在接入交换机上对源 MAC 8C-18-20-21-11-20 配置黑洞/丢弃(华为 `mac-address blackhole`、华三同义、思科 `mac address-table static ... drop`)，禁止该主机访问任何 VLAN。"},
+    {"title":"七、DHCP Snooping 与 DAI","body":"接入交换机启用 DHCP Snooping(上联 DSW 口 trust)，构建 IP-MAC-端口绑定表。DAI 基于该表校验 ARP：华为 CE 用 `arp anti-attack check user-bind enable`(VLAN 视图)、华三用 `arp detection enable`+`arp detection vlan`、思科用 `ip arp inspection vlan`；上联信任口相应配置 trust。可阻断伪造网关 ARP、ARP 欺骗与 IP 地址欺骗。"},
+    {"title":"八、802.1x 认证（PC3）","body":"PC3 接 ASW2 的 GE1/0/11，绑定 `authentication-profile p1`(华为 CE NAC 方式)：全局 `dot1x enable`，`dot1x-access-profile d1` 设 EAP，认证域 example.com 指向 RADIUS 服务器 192.168.100.100。PC3 须通过 802.1x 认证(用户名/密码经 RADIUS)才能获权接入网络；认证失败则端口保持未授权状态。"},
+    {"title":"九、SSH + AAA 认证","body":"R1/R2/DSW1/DSW2 仅允许 SSH 远程登录，认证走 AAA：RADIUS 服务器 192.168.100.100，认证模式为 `radius local`(华为/H3C) 或 `group radius local`(思科)——RADIUS 可达时用 RADIUS，不可达时回退本地账号 admin/Admin@123，避免服务器异常导致锁死登录。本地账号务必保留作为兜底。"},
+    {"title":"十、MSTP 多实例与根桥","body":"全网统一 MST 区域名 CAMPUS，划分两实例：instance 1(VLAN10/30/50/100) 根桥 DSW1、备根 DSW2；instance 2(VLAN20/40/60) 根桥 DSW2、备根 DSW1。使奇偶 VLAN 的二层流量分别经各自主用汇聚，负载相对均衡且避免单点根桥震荡。接入交换机上联口启 root-protection + loop-protection，主机口启 edged-port(portfast)。"},
+    {"title":"十一、LACP 链路聚合","body":"仅 DSW1<->DSW2(同为华为)采用 802.3ad LACP(`mode lacp-static`)，多条物理链聚为 Eth-Trunk1，负载均衡方式 `src-dst-ip`；其上承载 VLANIF999 作三层互联(/30)。其余上联(接入↔汇聚，跨厂商)采用普通 Trunk，避免跨厂商 LACP 兼容性问题。"},
+    {"title":"十二、部署与验证提示","body":"1) 各设备按 `主机名_角色_v1.txt` 顺序粘贴配置并执行保存(华为 `save`、思科 `write memory`、华三 `save`)。2) 验证：PC 应能 DHCP 获取到 .101-.254 地址并能 ping 通 AAA(192.168.100.100)；shutdown R1 的 ISP 口后应能经 R2 继续出网；PC3 未通过 802.1x 前应无法上网；黑洞 MAC 主机应全程不可达。3) 命令已按官方文档核对，若 eve-ng 实际镜像版本有差异，请据真机/模拟器微调 DAI、802.1x 等少数命令。"}
   ]
 }
